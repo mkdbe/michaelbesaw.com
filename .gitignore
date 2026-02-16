@@ -1,0 +1,4 @@
+node_modules/
+analytics.json
+photos/
+*.log

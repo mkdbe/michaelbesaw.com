@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-BEW2JPNZ16"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-BEW2JPNZ16');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- SEO Meta Tags -->
+    <title>michaelbesaw photography archive</title>
+    <meta name="description" content="michaelbesaw photography archive - Professional landscape and nature photography">
+    <meta name="keywords" content="michaelbesaw, photography, archive, photographer, landscape photography, nature photography">
+    <meta name="author" content="michaelbesaw">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="michaelbesaw photography archive">
+    <meta property="og:description" content="Professional landscape and nature photography archive">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="michaelbesaw photography archive">
+    
+    <!-- Apple Touch Icon -->
+    <meta name="apple-mobile-web-app-title" content="michaelbesaw">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon.ico">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            caret-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+            caret-color: transparent;
+        }
+
+        .gallery-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .image-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            transform: translateX(0);
+        }
+
+        .image-slide.active {
+            opacity: 1;
+            transform: translateX(0);
+            z-index: 2;
+        }
+
+        /* Wipe transition classes for Magic Mouse navigation */
+        .image-slide.wipe-out-left {
+            animation: wipeOutLeft 0.5s ease-out forwards;
+            z-index: 1;
+        }
+
+        .image-slide.wipe-out-right {
+            animation: wipeOutRight 0.5s ease-out forwards;
+            z-index: 1;
+        }
+
+        .image-slide.wipe-in-left {
+            animation: wipeInLeft 0.5s ease-out forwards;
+            z-index: 2;
+        }
+
+        .image-slide.wipe-in-right {
+            animation: wipeInRight 0.5s ease-out forwards;
+            z-index: 2;
+        }
+
+        @keyframes wipeOutLeft {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-100%);
+                opacity: 1;
+            }
+        }
+
+        @keyframes wipeOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 1;
+            }
+        }
+
+        @keyframes wipeInLeft {
+            from {
+                transform: translateX(100%);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes wipeInRight {
+            from {
+                transform: translateX(-100%);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .title {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            z-index: 100;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            opacity: 0.85;
+            transition: opacity 0.3s ease;
+            text-align: left;
+        }
+
+        .title:hover + .about-btn,
+        .about-btn:hover {
+            opacity: 1;
+        }
+
+        /* Hide title in fullscreen */
+        :fullscreen .title,
+        :-webkit-full-screen .title,
+        :-moz-full-screen .title {
+            display: none;
+        }
+
+        .about-btn {
+            position: fixed;
+            top: 65px;
+            left: 30px;
+            background: none;
+            border: none;
+            color: #fff;
+            padding: 0;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: auto;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .about-btn:hover {
+            opacity: 0.7;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            z-index: 50;
+        }
+
+        /* Photo date display */
+        .photo-date {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            font-size: 8.75px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #fff;
+            opacity: 0.425;
+            z-index: 100;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .photo-date {
+                font-size: 7.5px;
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+
+        /* Hide date in landscape mode on mobile */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .photo-date {
+                display: none;
+            }
+        }
+
+        /* About overlay */
+        .about-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            pointer-events: none;
+        }
+
+        .about-overlay.active {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .about-content {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            width: 50%;
+            max-width: 600px;
+            padding: 40px;
+            border-radius: 10px;
+            color: #fff;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .about-content h2 {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        .about-content p {
+            font-size: 16px;
+            line-height: 1.6;
+            font-weight: 300;
+            margin-bottom: 15px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .close-btn:hover {
+            opacity: 1;
+        }
+
+        /* Hover zones for showing arrows */
+        .hover-zone {
+            position: fixed;
+            top: 0;
+            width: 50vw;
+            height: 100vh;
+            z-index: 99;
+            pointer-events: auto;
+        }
+
+        .hover-zone.left {
+            left: 0;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>') 12 12, auto;
+        }
+
+        .hover-zone.right {
+            right: 0;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>') 12 12, auto;
+        }
+
+        /* Navigation arrows - hidden */
+        .nav-arrow {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 12px;
+                top: 20px;
+                left: 20px;
+            }
+
+            .about-btn {
+                font-size: 11px;
+                top: 40px;
+                left: 20px;
+                opacity: 1; /* Always visible on mobile portrait */
+            }
+        }
+
+        /* Hide title and About button in landscape mode on mobile */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .title,
+            .about-btn {
+                display: none;
+            }
+        }
+
+            .about-content {
+                width: 85%;
+                padding: 30px 25px;
+            }
+
+            .about-content h2 {
+                font-size: 22px;
+            }
+
+            .about-content p {
+                font-size: 14px;
+            }
+
+            .hover-zone {
+                width: 50vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="title" id="title">michaelbesaw</div>
+    <button class="about-btn" id="aboutBtn">About</button>
+
+    <div class="gallery-container" id="gallery"></div>
+
+    <div class="hover-zone left" id="hoverZoneLeft"></div>
+    <div class="hover-zone right" id="hoverZoneRight"></div>
+
+    <div class="nav-arrow left" id="prevBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </div>
+    <div class="nav-arrow right" id="nextBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </div>
+
+    <div class="about-overlay" id="aboutOverlay">
+        <div class="about-content">
+            <button class="close-btn" id="closeBtn">&times;</button>
+            <div id="aboutText"></div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">Loading images...</div>
+
+    <div class="photo-date" id="photoDate"></div>
+
+    <script>
+        let images = [];
+        let currentIndex = 0;
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let lastDirection = 'next'; // Track last swipe direction
+
+        // Load images from server
+        async function loadImages() {
+            try {
+                const response = await fetch('/api/images');
+                const data = await response.json();
+                
+                if (data.images && data.images.length > 0) {
+                    images = data.images;
+                    initGallery();
+                } else {
+                    document.getElementById('loading').textContent = 'No images found. Add photos to the "photos" folder!';
+                }
+            } catch (error) {
+                console.error('Error loading images:', error);
+                document.getElementById('loading').textContent = 'Error loading images. Make sure the server is running!';
+            }
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            return `${year}${month}${day}`;
+        }
+
+        // Update photo date display
+        function updatePhotoDate(index) {
+            const dateElement = document.getElementById('photoDate');
+            if (images[index] && images[index].date) {
+                dateElement.textContent = formatDate(images[index].date);
+            } else {
+                dateElement.textContent = '';
+            }
+        }
+
+        // Load about text from server
+        async function loadAboutText() {
+            try {
+                const response = await fetch('/api/about');
+                const data = await response.json();
+                
+                if (data.content) {
+                    document.getElementById('aboutText').innerHTML = data.content;
+                } else {
+                    document.getElementById('aboutText').innerHTML = '<p>About content not found.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading about text:', error);
+                document.getElementById('aboutText').innerHTML = '<p>Error loading about content.</p>';
+            }
+        }
+
+        // Shuffle array function
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        // Initialize gallery
+        function initGallery() {
+            images = shuffleArray(images);
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+            
+            images.forEach((img, index) => {
+                const slide = document.createElement('div');
+                slide.className = 'image-slide';
+                
+                if (index === 0) {
+                    // Load first image immediately
+                    slide.style.backgroundImage = `url('${img.url}')`;
+                    slide.classList.add('active');
+                    slide.style.opacity = '1';
+                    updatePhotoDate(0); // Show date for first image
+                } else if (index === 1) {
+                    // Preload second image immediately to prevent glitch
+                    slide.style.backgroundImage = `url('${img.url}')`;
+                    slide.style.opacity = '0';
+                    slide.style.transform = 'translateX(100%)';
+                } else {
+                    // Lazy load remaining images
+                    slide.setAttribute('data-bg', img.url);
+                    slide.style.opacity = '0';
+                    slide.style.transform = 'translateX(100%)';
+                }
+                
+                gallery.appendChild(slide);
+            });
+
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Show specific slide
+        function showSlide(index, useWipe = false, direction = 'next') {
+            // Safety check to ensure valid index
+            if (images.length === 0) return;
+            
+            // Ensure index is within bounds
+            if (index < 0) {
+                index = images.length - 1;
+            } else if (index >= images.length) {
+                index = 0;
+            }
+            
+            const slides = document.querySelectorAll('.image-slide');
+            
+            // Lazy load the image if not already loaded
+            const nextSlide = slides[index];
+            if (nextSlide.getAttribute('data-bg') && !nextSlide.style.backgroundImage) {
+                nextSlide.style.backgroundImage = `url('${nextSlide.getAttribute('data-bg')}')`;
+                nextSlide.removeAttribute('data-bg');
+            }
+            
+            // Preload next image
+            const preloadIndex = (index + 1) % images.length;
+            const preloadSlide = slides[preloadIndex];
+            if (preloadSlide && preloadSlide.getAttribute('data-bg')) {
+                preloadSlide.style.backgroundImage = `url('${preloadSlide.getAttribute('data-bg')}')`;
+                preloadSlide.removeAttribute('data-bg');
+            }
+            
+            if (useWipe) {
+                // If direction changed, reset all slide positions first
+                if (direction !== lastDirection) {
+                    slides.forEach((slide, i) => {
+                        if (i !== currentIndex) {
+                            slide.style.transition = 'none';
+                            slide.style.transform = 'translateX(100%)';
+                            slide.offsetHeight; // Force reflow
+                        }
+                    });
+                }
+                lastDirection = direction;
+                
+                // Wipe transition
+                const currentSlide = slides[currentIndex];
+                const nextSlide = slides[index];
+                
+                // Position incoming slide off-screen in correct direction
+                nextSlide.style.opacity = '1';
+                nextSlide.classList.add('active');
+                nextSlide.style.transition = 'none'; // Disable transition for positioning
+                if (direction === 'next') {
+                    nextSlide.style.transform = 'translateX(100%)';
+                } else {
+                    nextSlide.style.transform = 'translateX(-100%)';
+                }
+                
+                // Force reflow to apply position
+                nextSlide.offsetHeight;
+                
+                // Re-enable transitions and start animation
+                nextSlide.style.transition = 'transform 0.5s ease-out';
+                currentSlide.style.transition = 'transform 0.5s ease-out';
+                
+                // Use setTimeout to ensure transition is applied
+                setTimeout(() => {
+                    nextSlide.style.transform = 'translateX(0)';
+                    if (direction === 'next') {
+                        currentSlide.style.transform = 'translateX(-100%)';
+                    } else {
+                        currentSlide.style.transform = 'translateX(100%)';
+                    }
+                }, 10);
+                
+                // Clean up after animation - CRITICAL: remove ALL inline styles
+                setTimeout(() => {
+                    slides.forEach((slide, i) => {
+                        if (i === index) {
+                            // Active slide - clean everything
+                            slide.style.transition = '';
+                            slide.style.transform = '';
+                            slide.style.opacity = '1';
+                        } else {
+                            // Inactive slides - hide them
+                            slide.classList.remove('active');
+                            slide.style.transition = '';
+                            slide.style.transform = '';
+                            slide.style.opacity = '0';
+                        }
+                    });
+                }, 550);
+            } else {
+                // Instant cut transition (no dissolve)
+                // Clean up any leftover inline styles from wipe transitions
+                slides.forEach((slide, i) => {
+                    slide.style.transition = '';
+                    slide.style.transform = '';
+                    
+                    if (i === index) {
+                        slide.classList.add('active');
+                        slide.style.opacity = '1';
+                    } else {
+                        slide.classList.remove('active');
+                        slide.style.opacity = '0';
+                    }
+                });
+            }
+            
+            currentIndex = index;
+            updatePhotoDate(index); // Update date when changing photos
+        }
+
+        // Next slide
+        function nextSlide(useWipe = false) {
+            if (images.length === 0) return;
+            const nextIndex = (currentIndex + 1) % images.length;
+            showSlide(nextIndex, useWipe, 'next');
+        }
+
+        // Previous slide
+        function prevSlide(useWipe = false) {
+            if (images.length === 0) return;
+            const prevIndex = (currentIndex - 1 + images.length) % images.length;
+            showSlide(prevIndex, useWipe, 'prev');
+        }
+
+        // Hover zone click handlers for navigation
+        const hoverZoneLeft = document.getElementById('hoverZoneLeft');
+        const hoverZoneRight = document.getElementById('hoverZoneRight');
+
+        // Click on left/right halves to navigate
+        hoverZoneLeft.addEventListener('click', () => {
+            prevSlide();
+        });
+
+        hoverZoneRight.addEventListener('click', () => {
+            nextSlide();
+        });
+
+        // About overlay controls
+        const aboutOverlay = document.getElementById('aboutOverlay');
+        const closeBtn = document.getElementById('closeBtn');
+
+        aboutBtn.addEventListener('click', () => {
+            aboutOverlay.classList.add('active');
+            loadAboutText();
+        });
+
+        closeBtn.addEventListener('click', () => {
+            aboutOverlay.classList.remove('active');
+        });
+
+        // Close overlay when clicking outside content
+        aboutOverlay.addEventListener('click', (e) => {
+            if (e.target === aboutOverlay) {
+                aboutOverlay.classList.remove('active');
+            }
+        });
+
+        // Close overlay with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && aboutOverlay.classList.contains('active')) {
+                aboutOverlay.classList.remove('active');
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (aboutOverlay.classList.contains('active')) return; // Don't navigate when About is open
+            
+            if (e.key === 'ArrowLeft') {
+                prevSlide();
+            } else if (e.key === 'ArrowRight') {
+                nextSlide();
+            }
+        });
+
+        // Touch/Swipe support
+        const gallery = document.getElementById('gallery');
+
+        gallery.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        gallery.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, { passive: true });
+
+        // Mouse drag support for touchpad
+        let mouseStartX = 0;
+        let mouseEndX = 0;
+        let isDragging = false;
+
+        gallery.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            mouseStartX = e.screenX;
+        });
+
+        gallery.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            mouseEndX = e.screenX;
+            handleMouseSwipe();
+        });
+
+        gallery.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        // Magic Mouse and trackpad swipe support
+        let lastWheelTime = 0;
+        let wheelDeltaX = 0;
+        let isScrolling = false;
+        
+        // Prevent browser navigation on horizontal scroll (especially Firefox)
+        window.addEventListener('wheel', (e) => {
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        document.addEventListener('wheel', (e) => {
+            const now = Date.now();
+            
+            // Detect horizontal scroll (Magic Mouse swipe)
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 4) {
+                // CRITICAL: Prevent browser back/forward navigation
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                if (!isScrolling) {
+                    wheelDeltaX = 0;
+                    isScrolling = true;
+                }
+                
+                wheelDeltaX += e.deltaX;
+                
+                // Reset after period of inactivity
+                clearTimeout(window.wheelTimeout);
+                window.wheelTimeout = setTimeout(() => {
+                    wheelDeltaX = 0;
+                    isScrolling = false;
+                }, 300);
+                
+                // Higher threshold and longer debounce to prevent skipping
+                if (Math.abs(wheelDeltaX) > 120 && now - lastWheelTime > 1000) {
+                    if (wheelDeltaX > 0) {
+                        // Swiping left (positive deltaX) - go to next with wipe
+                        nextSlide(true);
+                    } else {
+                        // Swiping right (negative deltaX) - go to previous with wipe
+                        prevSlide(true);
+                    }
+                    wheelDeltaX = 0;
+                    lastWheelTime = now;
+                    isScrolling = false;
+                }
+                
+                return false;
+            }
+        }, { passive: false, capture: true });
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    // Swiped left - show next with wipe
+                    nextSlide(true);
+                } else {
+                    // Swiped right - show previous with wipe
+                    prevSlide(true);
+                }
+            }
+        }
+
+        function handleMouseSwipe() {
+            const swipeThreshold = 50;
+            const diff = mouseStartX - mouseEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    // Swiped left - show next with wipe
+                    nextSlide(true);
+                } else {
+                    // Swiped right - show previous with wipe
+                    prevSlide(true);
+                }
+            }
+        }
+
+        // Initialize - load images from server
+        loadImages();
+    </script>
+
+
+<script>
+// Analytics tracking
+fetch('/api/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: window.location.pathname, referer: document.referrer || 'Direct' })
+}).catch(() => {});
+
+// Heartbeat every 10 seconds
+setInterval(() => {
+    fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+}, 10000);
+
+// Track navigation clicks
+document.addEventListener('keydown', () => {
+    fetch('/api/track-nav', { method: 'POST' }).catch(() => {});
+});
+document.addEventListener('click', () => {
+    fetch('/api/track-nav', { method: 'POST' }).catch(() => {});
+});
+document.addEventListener('touchend', () => {
+    fetch('/api/track-nav', { method: 'POST' }).catch(() => {});
+});
+</script>
+
+
+
+</body>
+</html>

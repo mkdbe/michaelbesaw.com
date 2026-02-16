@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>analytics — michaelbesaw</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;1,300&family=DM+Sans:ital,wght@0,200;0,300;0,400;1,300&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0c0c0b;
+            --surface: #111110;
+            --border: rgba(255,255,255,0.07);
+            --border2: rgba(255,255,255,0.04);
+            --text: #f0ebe0;
+            --muted: #f0ebe0;
+            --dim: rgba(240,235,224,0.55);
+            --accent: #f0ebe0;
+            --mono: 'DM Mono', monospace;
+            --sans: 'DM Sans', sans-serif;
+        }
+
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 48px 44px 80px;
+            max-width: 1140px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 52px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+        .header-left { display: flex; align-items: baseline; gap: 16px; }
+        .wordmark {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 300;
+            color: var(--muted);
+            text-decoration: none;
+            letter-spacing: 0.04em;
+            transition: color 0.2s;
+        }
+        .wordmark:hover { color: var(--text); }
+        .slash { color: var(--dim); font-family: var(--mono); font-size: 13px; }
+        .page-label {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 300;
+            color: var(--muted);
+            letter-spacing: 0.04em;
+        }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .last-updated {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--dim);
+            letter-spacing: 0.03em;
+        }
+        .refresh-btn {
+            font-family: var(--mono);
+            font-size: 11px;
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 6px 16px;
+            cursor: pointer;
+            letter-spacing: 0.08em;
+            transition: all 0.15s;
+        }
+        .refresh-btn:hover { border-color: rgba(255,255,255,0.18); color: var(--text); }
+
+        /* KPI Row */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            margin-bottom: 20px;
+        }
+        .kpi {
+            background: var(--bg);
+            padding: 26px 24px 22px;
+        }
+        .kpi-value {
+            font-family: var(--mono);
+            font-size: 40px;
+            font-weight: 300;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 10px;
+        }
+        .kpi-label {
+            font-size: 10px;
+            font-weight: 300;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .kpi-sub {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--dim);
+            margin-top: 5px;
+        }
+
+        /* Sparkline */
+        .spark-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 18px 24px 20px;
+            margin-bottom: 20px;
+        }
+        .spark-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .spark-title {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .spark-dates { font-family: var(--mono); font-size: 10px; color: var(--dim); }
+        .sparkline-wrap {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 48px;
+        }
+        .spark-bar {
+            flex: 1;
+            border-radius: 2px;
+            background: var(--border2);
+            min-height: 2px;
+            transition: background 0.2s;
+        }
+        .spark-bar.active { background: var(--accent); }
+
+        /* Breakdown grid */
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 18px 20px 16px;
+        }
+        .card-title {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border2);
+        }
+
+        /* Bar rows */
+        .bar-row { margin-bottom: 10px; }
+        .bar-row:last-child { margin-bottom: 0; }
+        .bar-meta { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .bar-label { font-size: 12px; font-weight: 300; opacity: 0.75; }
+        .bar-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+        .bar-track { height: 2px; background: var(--border2); border-radius: 1px; }
+        .bar-fill { height: 2px; background: var(--accent); border-radius: 1px; }
+
+        /* Locations */
+        .loc-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border2);
+        }
+        .loc-item:last-child { border-bottom: none; }
+        .loc-rank { font-family: var(--mono); font-size: 10px; color: var(--dim); width: 18px; flex-shrink: 0; }
+        .loc-name { font-size: 12px; font-weight: 300; opacity: 0.8; flex: 1; padding: 0 10px 0 6px; }
+        .loc-bar { flex: 0 0 80px; }
+        .loc-count { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 22px; text-align: right; flex-shrink: 0; }
+
+        /* Table */
+        .table-section { margin-top: 4px; }
+        .table-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .table-title { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+        .table-meta { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+        .table-wrap { border: 1px solid var(--border); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead tr { border-bottom: 1px solid var(--border); background: var(--surface); }
+        th {
+            font-family: var(--mono); font-size: 10px; font-weight: 400;
+            letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+            padding: 10px 14px; text-align: left; white-space: nowrap;
+        }
+        tbody tr { border-bottom: 1px solid var(--border2); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover td { background: rgba(255,255,255,0.015); }
+        td { font-family: var(--mono); font-size: 12px; padding: 9px 14px; color: var(--muted); white-space: nowrap; }
+        td.bright { color: var(--text); }
+        td.dim { color: var(--dim); }
+        .chip { display: inline-block; font-size: 10px; padding: 2px 7px; border: 1px solid var(--border); color: var(--dim); }
+        .chip.mobile  { border-color: rgba(200,184,154,0.25); color: rgba(200,184,154,0.6); }
+        .chip.desktop { border-color: rgba(180,200,180,0.2);  color: rgba(180,200,180,0.55); }
+        .chip.tablet  { border-color: rgba(180,180,210,0.2);  color: rgba(180,180,210,0.55); }
+        .empty { font-family: var(--mono); font-size: 12px; color: var(--dim); padding: 16px 0 4px; font-style: italic; }
+
+        @media (max-width: 900px) {
+            body { padding: 28px 20px 60px; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 560px) {
+            body { padding: 20px 14px 60px; }
+            .kpi-value { font-size: 30px; }
+            .header-right .last-updated { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <a href="/" class="wordmark">michaelbesaw</a>
+        <span class="slash">/</span>
+        <span class="page-label">analytics</span>
+    </div>
+    <div class="header-right">
+        <span class="last-updated" id="ts"></span>
+        <button class="refresh-btn" id="filter-btn" onclick="toggleFilter()">humans only</button>
+        <button class="refresh-btn" onclick="location.reload()">↺ refresh</button>
+    </div>
+</div>
+
+<div id="root" style="font-family:'DM Mono',monospace;font-size:12px;color:rgba(232,224,208,0.25);padding:60px 0;text-align:center">loading…</div>
+
+<script>
+let showHumansOnly = false;
+function toggleFilter() {
+    showHumansOnly = !showHumansOnly;
+    document.getElementById('filter-btn').style.borderColor = showHumansOnly ? 'rgba(255,255,255,0.4)' : '';
+    document.getElementById('filter-btn').style.color = showHumansOnly ? 'var(--text)' : '';
+    init();
+}
+
+async function init() {
+    const root = document.getElementById('root');
+    let data;
+    try {
+        const r = await fetch('/api/analytics');
+        data = await r.json();
+    } catch(e) {
+        root.innerHTML = '<div style="color:#f66;padding:40px">Failed to load analytics.</div>';
+        return;
+    }
+
+    const allVisits = data.visits || [];
+    const visits = showHumansOnly
+        ? allVisits.filter(v => v.duration > 0 || v.navigations > 0)
+        : allVisits;
+    const total = visits.length;
+    const now = Date.now();
+
+    document.getElementById('ts').textContent = new Date().toLocaleString('en-US', {
+        timeZone:'America/New_York', month:'short', day:'numeric',
+        hour:'2-digit', minute:'2-digit', hour12:false
+    }) + ' EST';
+
+    // Time buckets
+    const last24h = visits.filter(v => now - new Date(v.timestamp) < 864e5).length;
+    const last7d  = visits.filter(v => now - new Date(v.timestamp) < 7*864e5).length;
+
+    // Bounce & duration
+    const bounced = visits.filter(v => (!v.navigations || v.navigations === 0) && (!v.duration || v.duration < 10)).length;
+    const bounceRate = total > 0 ? Math.round((bounced / total) * 100) : 0;
+    const withDur = visits.filter(v => v.duration > 0);
+    const avgDur = withDur.length ? Math.floor(withDur.reduce((s,v) => s+v.duration, 0) / withDur.length) : 0;
+    const fmtDur = s => !s ? '0:00' : `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+
+    // Count helpers
+    const countBy = key => visits.reduce((a,v) => { const k=v[key]||'Unknown'; a[k]=(a[k]||0)+1; return a; }, {});
+    const devices  = countBy('device');
+    const browsers = countBy('browser');
+    const oses     = countBy('os');
+    const locs     = countBy('location');
+
+    const sources = visits.reduce((a,v) => {
+        let s = 'Direct';
+        const r = v.referer || '';
+        if (r && r !== 'Direct') {
+            if (/google/i.test(r)) s = 'Google';
+            else if (/bing/i.test(r)) s = 'Bing';
+            else if (/facebook|fb/i.test(r)) s = 'Facebook';
+            else if (/twitter|t\.co/i.test(r)) s = 'Twitter';
+            else if (/instagram/i.test(r)) s = 'Instagram';
+            else if (/linkedin/i.test(r)) s = 'LinkedIn';
+            else if (/reddit/i.test(r)) s = 'Reddit';
+            else s = 'Other';
+        }
+        a[s] = (a[s]||0)+1; return a;
+    }, {});
+
+    // Sparkline (last 14 days)
+    const dayKeys = [], dayDisplay = [];
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        dayKeys.push(d.toISOString().slice(0,10));
+        dayDisplay.push(i===0 ? 'today' : d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    }
+    const dayCounts = Object.fromEntries(dayKeys.map(k => [k,0]));
+    visits.forEach(v => { const k=new Date(v.timestamp).toISOString().slice(0,10); if(k in dayCounts) dayCounts[k]++; });
+    const sv = dayKeys.map(k => dayCounts[k]);
+    const sm = Math.max(...sv, 1);
+
+    // Bar chart
+    const barChart = counts => {
+        const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+        if (!sorted.length) return '<div class="empty">no data</div>';
+        return sorted.map(([label, n]) => {
+            const pct = total > 0 ? Math.round((n/total)*100) : 0;
+            return `<div class="bar-row">
+                <div class="bar-meta">
+                    <span class="bar-label">${label}</span>
+                    <span class="bar-count">${n} <span style="opacity:.4">${pct}%</span></span>
+                </div>
+                <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            </div>`;
+        }).join('');
+    };
+
+    // Locations
+    const topLocs = Object.entries(locs).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const maxLoc = topLocs[0] ? topLocs[0][1] : 1;
+    const locsHtml = !topLocs.length ? '<div class="empty">no data</div>' :
+        topLocs.map(([loc, n], i) => `
+        <div class="loc-item">
+            <span class="loc-rank">${i+1}</span>
+            <span class="loc-name">${loc}</span>
+            <div class="loc-bar">
+                <div class="bar-track"><div class="bar-fill" style="width:${Math.round((n/maxLoc)*100)}%"></div></div>
+            </div>
+            <span class="loc-count">${n}</span>
+        </div>`).join('');
+
+    // Table rows
+    const recent = visits.slice(-50).reverse();
+    const rowsHtml = !recent.length
+        ? '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--dim);font-style:italic">no visits yet</td></tr>'
+        : recent.map(v => {
+            let src = 'Direct';
+            const r = v.referer||'';
+            if (r && r!=='Direct') {
+                if (/google/i.test(r)) src='Google';
+                else if (/bing/i.test(r)) src='Bing';
+                else if (/facebook|fb/i.test(r)) src='Facebook';
+                else if (/twitter|t\.co/i.test(r)) src='Twitter';
+                else if (/instagram/i.test(r)) src='Instagram';
+                else if (/linkedin/i.test(r)) src='LinkedIn';
+                else if (/reddit/i.test(r)) src='Reddit';
+                else src='Other';
+            }
+            const est = new Date(v.timestamp).toLocaleString('en-US',{
+                timeZone:'America/New_York', month:'2-digit', day:'2-digit',
+                hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+            });
+            const dev = (v.device||'').toLowerCase();
+            const chip = dev==='mobile'?'mobile':dev==='tablet'?'tablet':'desktop';
+            return `<tr>
+                <td class="bright">${est}</td>
+                <td class="dim">${v.ip||'—'}</td>
+                <td>${v.location||'—'}</td>
+                <td><span class="chip ${chip}">${v.device||'—'}</span></td>
+                <td>${v.os||'—'}</td>
+                <td>${v.browser||'—'}</td>
+                <td>${fmtDur(v.duration||0)}</td>
+                <td class="bright">${v.navigations||0}</td>
+                <td>${src}</td>
+            </tr>`;
+        }).join('');
+
+    root.innerHTML = `
+    <div class="kpi-row">
+        <div class="kpi">
+            <div class="kpi-value">${total}</div>
+            <div class="kpi-label">Total Visits</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-value">${last24h}</div>
+            <div class="kpi-label">Last 24h</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-value">${last7d}</div>
+            <div class="kpi-label">Last 7 Days</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-value">${bounceRate}<span style="font-size:22px;opacity:.5">%</span></div>
+            <div class="kpi-label">Bounce Rate</div>
+            <div class="kpi-sub">avg ${fmtDur(avgDur)} on site</div>
+        </div>
+    </div>
+
+    <div class="spark-card">
+        <div class="spark-header">
+            <span class="spark-title">Daily visits — last 14 days</span>
+            <span class="spark-dates">${dayKeys[0]} → ${dayKeys[13]}</span>
+        </div>
+        <div class="sparkline-wrap">
+            ${sv.map((n,i) => {
+                const h = Math.max(2, Math.round((n/sm)*48));
+                return `<div class="spark-bar ${n>0?'active':''}"
+                    style="height:${h}px;opacity:${n>0?Math.max(0.25,n/sm):0.12}"
+                    title="${dayDisplay[i]}: ${n}"></div>`;
+            }).join('')}
+        </div>
+    </div>
+
+    <div class="grid-4">
+        <div class="card"><div class="card-title">Device</div>${barChart(devices)}</div>
+        <div class="card"><div class="card-title">Browser</div>${barChart(browsers)}</div>
+        <div class="card"><div class="card-title">OS</div>${barChart(oses)}</div>
+        <div class="card"><div class="card-title">Source</div>${barChart(sources)}</div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+        <div class="card-title">Top Locations</div>
+        ${locsHtml}
+    </div>
+
+    <div class="table-section">
+        <div class="table-top">
+            <span class="table-title">Recent Visits</span>
+            <span class="table-meta">last ${recent.length}</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Time (EST)</th><th>IP</th><th>Location</th>
+                    <th>Device</th><th>OS</th><th>Browser</th>
+                    <th>Duration</th><th>Clicks</th><th>Source</th>
+                </tr></thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>
