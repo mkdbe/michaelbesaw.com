@@ -3,3 +3,14 @@ analytics.json
 photos/
 *.log
 photos-mobile/
+
+# Photos (large files)
+photos-mobile/
+photos/
+
+# Backups
+*.bak
+*.backup
+
+# Dependencies
+package-lock.json
