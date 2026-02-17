@@ -244,7 +244,7 @@
     </div>
     <div class="header-right">
         <span class="last-updated" id="ts"></span>
-        <button class="refresh-btn" id="filter-btn" onclick="toggleFilter()">humans only</button>
+        <button class="refresh-btn" id="filter-btn" onclick="toggleFilter()">show bots</button>
         <button class="refresh-btn" onclick="location.reload()">↺ refresh</button>
     </div>
 </div>
@@ -252,11 +252,13 @@
 <div id="root" style="font-family:'DM Mono',monospace;font-size:12px;color:rgba(232,224,208,0.25);padding:60px 0;text-align:center">loading…</div>
 
 <script>
-let showHumansOnly = false;
+let showHumansOnly = true;
 function toggleFilter() {
     showHumansOnly = !showHumansOnly;
-    document.getElementById('filter-btn').style.borderColor = showHumansOnly ? 'rgba(255,255,255,0.4)' : '';
-    document.getElementById('filter-btn').style.color = showHumansOnly ? 'var(--text)' : '';
+    const btn = document.getElementById('filter-btn');
+    btn.textContent = showHumansOnly ? 'show bots' : 'hide bots';
+    btn.style.borderColor = showHumansOnly ? 'rgba(255,255,255,0.4)' : '';
+    btn.style.color = showHumansOnly ? 'var(--text)' : '';
     init();
 }
 
