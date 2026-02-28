@@ -422,6 +422,12 @@ app.get("/analytics", (req, res) => {
     res.sendFile(path.join(__dirname, "analytics-dashboard.html"));
 });
 
+
+// Catch-all 404 for unknown routes
+app.use((req, res) => {
+    res.status(404).send('Not Found');
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`
 ========================================
