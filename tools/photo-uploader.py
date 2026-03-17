@@ -602,7 +602,7 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         self.progress_canvas.pack_forget()
         self.upload_btn_label.config(text="PROCESS + UPLOAD", cursor="hand2")
         self._clear_queue()
-        messagebox.showinfo("Done", "Photos processed and uploaded successfully.")
+        self._log("✓ All photos processed and uploaded.")
 
     def _upload_failed(self):
         self.processing = False
@@ -610,7 +610,7 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         self.progress_canvas.pack_forget()
         self.upload_btn_label.config(text="PROCESS + UPLOAD", fg=MUTED, cursor="hand2")
         self.upload_btn_frame.config(bg=BORDER)
-        messagebox.showerror("Upload Failed", "Check the log for details.")
+        self._log("✗ Upload failed. Check log above.")
 
     # ── Delete page methods ──
 
@@ -697,12 +697,12 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         self.processing = False
         self.del_exec_btn.config(text="DELETE FROM SERVER", fg=WHITE, cursor="hand2")
         self._clear_delete_queue()
-        messagebox.showinfo("Done", "Photos deleted from server.")
+        self._log("✓ All deletions complete.")
 
     def _delete_failed(self):
         self.processing = False
         self.del_exec_btn.config(text="DELETE FROM SERVER", fg=WHITE, cursor="hand2")
-        messagebox.showerror("Delete Failed", "Check the log for details.")
+        self._log("✗ Delete operation failed. Check log above.")
 
 
 if __name__ == "__main__":
