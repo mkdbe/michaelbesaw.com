@@ -237,6 +237,28 @@
             }
         }
 
+        /* Photo filename overlay - toggled with "i" key */
+        .photo-filename {
+            position: fixed;
+            bottom: 14px;
+            right: 30px;
+            font-size: 10px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 3px 0;
+            z-index: 100;
+            pointer-events: none;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .photo-filename {
+                display: none !important;
+            }
+        }
+
         /* About overlay */
         .about-overlay {
             position: fixed;
@@ -407,6 +429,7 @@
 
     <div class="loading" id="loading">Loading images...</div>
 
+    <div class="photo-filename" id="photoFilename"></div>
     <div class="photo-date" id="photoDate"></div>
 
     <script>
@@ -415,6 +438,7 @@
         let touchStartX = 0;
         let touchEndX = 0;
         let lastDirection = 'next'; // Track last swipe direction
+        let showingInfo = false; // Toggle filename display with "i" key
 
         const SEEN_KEY = 'gallery_seen';
 
@@ -448,13 +472,25 @@
             return `${year}${month}${day}`;
         }
 
-        // Update photo date display
+        // Update photo date and filename display
         function updatePhotoDate(index) {
             const dateElement = document.getElementById('photoDate');
-            if (images[index] && images[index].date) {
-                dateElement.textContent = formatDate(images[index].date);
+            const nameElement = document.getElementById('photoFilename');
+            if (images[index]) {
+                if (images[index].date) {
+                    dateElement.textContent = formatDate(images[index].date);
+                } else {
+                    dateElement.textContent = '';
+                }
+                if (showingInfo) {
+                    nameElement.textContent = images[index].url.split('/').pop();
+                    nameElement.style.display = 'block';
+                } else {
+                    nameElement.style.display = 'none';
+                }
             } else {
                 dateElement.textContent = '';
+                nameElement.style.display = 'none';
             }
         }
 
@@ -527,33 +563,39 @@
             const gallery = document.getElementById('gallery');
             gallery.innerHTML = '';
             
-            images.forEach((img, index) => {
+            // Only 3 slides: prev, current, next — avoids GPU compositor limits
+            for (let i = 0; i < 3; i++) {
                 const slide = document.createElement('div');
                 slide.className = 'image-slide';
-                
-                if (index === 0) {
-                    // Load first image immediately
-                    slide.style.backgroundImage = `url('${img.url}')`;
+                slide.id = 'slide-' + i;
+                if (i === 1) {
+                    // Middle slide is the active one
+                    slide.style.backgroundImage = `url('${images[0].url}')`;
                     slide.classList.add('active');
                     slide.style.opacity = '1';
-                    updatePhotoDate(0);
-                    markSeen(img.url); // Mark first photo as seen
-                } else if (index === 1) {
-                    // Preload second image immediately to prevent glitch
-                    slide.style.backgroundImage = `url('${img.url}')`;
-                    slide.style.opacity = '0';
-                    slide.style.transform = 'translateX(100%)';
                 } else {
-                    // Lazy load remaining images
-                    slide.setAttribute('data-bg', img.url);
                     slide.style.opacity = '0';
-                    slide.style.transform = 'translateX(100%)';
                 }
-                
                 gallery.appendChild(slide);
-            });
+            }
+
+            currentIndex = 0;
+            updatePhotoDate(0);
+            markSeen(images[0].url);
+
+            // Preload next few images into browser cache
+            preloadCache(0);
 
             document.getElementById('loading').style.display = 'none';
+        }
+
+        // Preload images into browser cache (not into DOM)
+        function preloadCache(index) {
+            for (let offset = 1; offset <= 5; offset++) {
+                const i = (index + offset) % images.length;
+                const img = new Image();
+                img.src = images[i].url;
+            }
         }
 
         // Show specific slide
@@ -569,103 +611,86 @@
             }
             
             const slides = document.querySelectorAll('.image-slide');
-            
-            // Lazy load the image if not already loaded
-            const nextSlide = slides[index];
-            if (nextSlide.getAttribute('data-bg') && !nextSlide.style.backgroundImage) {
-                nextSlide.style.backgroundImage = `url('${nextSlide.getAttribute('data-bg')}')`;
-                nextSlide.removeAttribute('data-bg');
-            }
-            
-            // Preload next image
-            const preloadIndex = (index + 1) % images.length;
-            const preloadSlide = slides[preloadIndex];
-            if (preloadSlide && preloadSlide.getAttribute('data-bg')) {
-                preloadSlide.style.backgroundImage = `url('${preloadSlide.getAttribute('data-bg')}')`;
-                preloadSlide.removeAttribute('data-bg');
-            }
+            // slides[0] = prev, slides[1] = current, slides[2] = next
             
             if (useWipe) {
-                // If direction changed, reset all slide positions first
-                if (direction !== lastDirection) {
-                    slides.forEach((slide, i) => {
-                        if (i !== currentIndex) {
-                            slide.style.transition = 'none';
-                            slide.style.transform = 'translateX(100%)';
-                            slide.offsetHeight; // Force reflow
-                        }
-                    });
-                }
-                lastDirection = direction;
-                
-                // Wipe transition
-                const currentSlide = slides[currentIndex];
-                const nextSlide = slides[index];
-                
-                // Position incoming slide off-screen in correct direction
-                nextSlide.style.opacity = '1';
-                nextSlide.classList.add('active');
-                nextSlide.style.transition = 'none'; // Disable transition for positioning
+                let outgoing, incoming;
                 if (direction === 'next') {
-                    nextSlide.style.transform = 'translateX(100%)';
+                    outgoing = slides[1]; // current
+                    incoming = slides[2]; // next slot
                 } else {
-                    nextSlide.style.transform = 'translateX(-100%)';
+                    outgoing = slides[1]; // current
+                    incoming = slides[0]; // prev slot
                 }
                 
-                // Force reflow to apply position
-                nextSlide.offsetHeight;
+                // Set the incoming slide's image
+                incoming.style.backgroundImage = `url('${images[index].url}')`;
+                incoming.style.opacity = '1';
+                incoming.classList.add('active');
+                incoming.style.transition = 'none';
                 
-                // Re-enable transitions and start animation
-                nextSlide.style.transition = 'transform 0.5s ease-out';
-                currentSlide.style.transition = 'transform 0.5s ease-out';
+                if (direction === 'next') {
+                    incoming.style.transform = 'translateX(100%)';
+                } else {
+                    incoming.style.transform = 'translateX(-100%)';
+                }
                 
-                // Use setTimeout to ensure transition is applied
+                // Force reflow
+                incoming.offsetHeight;
+                
+                // Animate
+                incoming.style.transition = 'transform 0.5s ease-out';
+                outgoing.style.transition = 'transform 0.5s ease-out';
+                
                 setTimeout(() => {
-                    nextSlide.style.transform = 'translateX(0)';
+                    incoming.style.transform = 'translateX(0)';
                     if (direction === 'next') {
-                        currentSlide.style.transform = 'translateX(-100%)';
+                        outgoing.style.transform = 'translateX(-100%)';
                     } else {
-                        currentSlide.style.transform = 'translateX(100%)';
+                        outgoing.style.transform = 'translateX(100%)';
                     }
                 }, 10);
                 
-                // Clean up after animation - CRITICAL: remove ALL inline styles
+                // Clean up after animation — reset all 3 slides
                 setTimeout(() => {
                     slides.forEach((slide, i) => {
-                        if (i === index) {
-                            // Active slide - clean everything
-                            slide.style.transition = '';
-                            slide.style.transform = '';
+                        slide.style.transition = '';
+                        slide.style.transform = '';
+                        if (i === 1) {
+                            // Center slide becomes the active one with new image
+                            slide.style.backgroundImage = `url('${images[index].url}')`;
+                            slide.classList.add('active');
                             slide.style.opacity = '1';
                         } else {
-                            // Inactive slides - hide them
                             slide.classList.remove('active');
-                            slide.style.transition = '';
-                            slide.style.transform = '';
                             slide.style.opacity = '0';
+                            slide.style.backgroundImage = '';
                         }
                     });
                 }, 550);
             } else {
-                // Instant cut transition (no dissolve)
-                // Clean up any leftover inline styles from wipe transitions
+                // Instant cut — just swap the center slide's image
                 slides.forEach((slide, i) => {
                     slide.style.transition = '';
                     slide.style.transform = '';
-                    
-                    if (i === index) {
+                    if (i === 1) {
+                        slide.style.backgroundImage = `url('${images[index].url}')`;
                         slide.classList.add('active');
                         slide.style.opacity = '1';
                     } else {
                         slide.classList.remove('active');
                         slide.style.opacity = '0';
+                        slide.style.backgroundImage = '';
                     }
                 });
             }
             
             currentIndex = index;
             updatePhotoDate(index);
-            markSeen(images[index].url); // Mark photo as seen when displayed
+            markSeen(images[index].url);
+
+            // Preload upcoming images into browser cache
+            preloadCache(index);
         }
 
         // Next slide
@@ -730,6 +755,9 @@
                 prevSlide();
             } else if (e.key === 'ArrowRight') {
                 nextSlide();
+            } else if (e.key === 'i' || e.key === 'I') {
+                showingInfo = !showingInfo;
+                updatePhotoDate(currentIndex);
             }
         });
 
