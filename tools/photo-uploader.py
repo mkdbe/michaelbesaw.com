@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-photo-uploader.py — michaelbesaw.com Photo Upload Tool
--------------------------------------------------------
+photo-uploader.py — michaelbesaw.com Photo Management Tool
+------------------------------------------------------------
 Drag & drop photos to process and rsync to server.
+Delete photos from server by filename.
 
 Web version:    max 2560px, 750KB–2MB, EXIF preserved → /photos/
 Mobile version: max 1080px, ~150–280KB, EXIF preserved → /photos-mobile/
@@ -44,6 +45,7 @@ REMOTE_WEB_DIR   = "/var/www/html/michaelbesaw.com/photos/"
 REMOTE_MOBILE_DIR= "/var/www/html/michaelbesaw.com/photos-mobile/"
 RSYNC_CMD        = "rsync"
 RSYNC_FLAGS      = ["-avhi", "--perms"]
+SSH_CMD          = "ssh"
 
 # ── Processing Config ─────────────────────────────────────────────────────────
 WEB_MAX_DIM      = 2560
@@ -155,11 +157,12 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         super().__init__()
         self.title("michaelbesaw — photo uploader")
         self.configure(bg=BG)
-        self.geometry("700x620")
+        self.geometry("700x780")
         self.resizable(True, True)
-        self.minsize(600, 500)
+        self.minsize(600, 650)
 
         self.queued_files = []   # list of Path objects
+        self.delete_files = []   # list of filenames to delete from server
         self.processing = False
 
         self._build_ui()
@@ -296,6 +299,67 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         self._progress_active = False
         self._progress_pos = 0
 
+        # ── Delete from server section ──
+        sep2 = tk.Frame(self, bg=BORDER, height=1)
+        sep2.pack(fill="x", padx=24, pady=(0, 12))
+
+        del_header = tk.Frame(self, bg=BG)
+        del_header.pack(fill="x", padx=24, pady=(0, 6))
+        tk.Label(del_header, text="DELETE FROM SERVER", font=("Courier New", 9),
+                 bg=BG, fg="#3a3a38").pack(side="left")
+        self.del_count_label = tk.Label(del_header, text="0 files",
+                                         font=("Courier New", 9), bg=BG, fg="#3a3a38")
+        self.del_count_label.pack(side="right")
+
+        # Filename entry row
+        entry_frame = tk.Frame(self, bg=BG)
+        entry_frame.pack(fill="x", padx=24, pady=(0, 6))
+
+        self.del_entry = tk.Entry(
+            entry_frame,
+            bg=SURFACE, fg=TEXT,
+            insertbackground=TEXT,
+            font=("Courier New", 11),
+            borderwidth=0, highlightthickness=1,
+            highlightbackground=BORDER, highlightcolor=MUTED,
+        )
+        self.del_entry.pack(side="left", fill="x", expand=True, ipady=8, padx=(0, 8))
+        self.del_entry.insert(0, "")
+        self._del_placeholder = True
+        self._set_del_placeholder()
+        self.del_entry.bind("<FocusIn>", self._del_focus_in)
+        self.del_entry.bind("<FocusOut>", self._del_focus_out)
+        self.del_entry.bind("<Return>", self._add_delete_file)
+
+        self.del_add_btn = self._make_btn(entry_frame, "ADD", self._add_delete_file, side="right")
+
+        # Delete file list
+        del_lb_frame = tk.Frame(self, bg=SURFACE, highlightthickness=1,
+                                 highlightbackground=BORDER)
+        del_lb_frame.pack(fill="both", expand=True, padx=24, pady=(0, 6))
+
+        self.del_listbox = tk.Listbox(
+            del_lb_frame,
+            bg=SURFACE, fg=MUTED,
+            selectbackground="#222220",
+            selectforeground=TEXT,
+            font=("Courier New", 11),
+            borderwidth=0, highlightthickness=0,
+            activestyle="none",
+            height=4,
+        )
+        self.del_listbox.pack(fill="both", expand=True, padx=10, pady=6)
+        self.del_listbox.bind("<MouseWheel>", lambda e: self.del_listbox.yview_scroll(-1*(e.delta//120), "units"))
+        self.del_listbox.bind("<Button-2>", self._remove_delete_selected)
+        self.del_listbox.bind("<Delete>", self._remove_delete_selected)
+
+        # Delete buttons
+        del_btn_frame = tk.Frame(self, bg=BG)
+        del_btn_frame.pack(fill="x", padx=24, pady=(0, 20))
+
+        self.del_clear_btn = self._make_btn(del_btn_frame, "CLEAR", self._clear_delete_queue, side="left")
+        self.del_exec_btn = self._make_btn(del_btn_frame, "DELETE FROM SERVER", self._start_delete, side="right")
+
     def _log(self, msg, color=None):
         self.log_text.config(state="normal")
         self.log_text.insert("end", msg + "\n")
@@ -429,6 +493,108 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         self.progress_canvas.pack_forget()
         self.upload_btn.config(text="PROCESS + UPLOAD", fg=MUTED, cursor="hand2")
         messagebox.showerror("Upload Failed", "Check the log for details.")
+
+    # ── Delete from server methods ──
+
+    def _set_del_placeholder(self):
+        self.del_entry.delete(0, "end")
+        self.del_entry.insert(0, "filename.jpg")
+        self.del_entry.config(fg="#3a3a38")
+        self._del_placeholder = True
+
+    def _del_focus_in(self, event=None):
+        if self._del_placeholder:
+            self.del_entry.delete(0, "end")
+            self.del_entry.config(fg=TEXT)
+            self._del_placeholder = False
+
+    def _del_focus_out(self, event=None):
+        if not self.del_entry.get().strip():
+            self._set_del_placeholder()
+
+    def _add_delete_file(self, event=None):
+        name = self.del_entry.get().strip()
+        if not name or name == "filename.jpg":
+            return
+        # Ensure .jpg extension
+        if not name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+            name += ".jpg"
+        if name not in self.delete_files:
+            self.delete_files.append(name)
+            self.del_listbox.insert("end", name)
+        self.del_entry.delete(0, "end")
+        self.del_count_label.config(text=f"{len(self.delete_files)} file(s)")
+
+    def _remove_delete_selected(self, event=None):
+        selected = self.del_listbox.curselection()
+        for i in reversed(selected):
+            self.del_listbox.delete(i)
+            del self.delete_files[i]
+        self.del_count_label.config(text=f"{len(self.delete_files)} file(s)")
+
+    def _clear_delete_queue(self):
+        self.delete_files.clear()
+        self.del_listbox.delete(0, "end")
+        self.del_count_label.config(text="0 files")
+        self._log("Delete queue cleared")
+
+    def _start_delete(self):
+        if not self.delete_files:
+            messagebox.showwarning("No files", "Add filenames to the delete queue first.")
+            return
+        if self.processing:
+            return
+
+        count = len(self.delete_files)
+        names = "\n".join(self.delete_files)
+        confirm = messagebox.askyesno(
+            "Confirm Delete",
+            f"Delete {count} photo(s) from server?\n\n{names}\n\n"
+            "This removes from both /photos/ and /photos-mobile/."
+        )
+        if not confirm:
+            return
+
+        self.processing = True
+        self.del_exec_btn.config(text="DELETING...", fg="#3a3a38", cursor="arrow")
+        threading.Thread(target=self._execute_delete, daemon=True).start()
+
+    def _execute_delete(self):
+        try:
+            self._log(f"\nDeleting {len(self.delete_files)} photo(s) from server...")
+
+            for name in self.delete_files:
+                web_path = REMOTE_WEB_DIR + name
+                mobile_path = REMOTE_MOBILE_DIR + name
+                rm_cmd = f"rm -f {web_path} {mobile_path}"
+
+                self._log(f"  rm {name}")
+                result = subprocess.run(
+                    [SSH_CMD, RSYNC_USER_HOST, rm_cmd],
+                    capture_output=True, text=True
+                )
+                if result.returncode != 0:
+                    self._log(f"    ERROR: {result.stderr.strip()}")
+                else:
+                    self._log(f"    ✓ removed")
+
+            self._log(f"\n✓ Done — {len(self.delete_files)} photo(s) deleted")
+            self.after(0, self._delete_complete)
+
+        except Exception as e:
+            self._log(f"\n✗ Delete failed: {e}")
+            self.after(0, self._delete_failed)
+
+    def _delete_complete(self):
+        self.processing = False
+        self.del_exec_btn.config(text="DELETE FROM SERVER", fg=MUTED, cursor="hand2")
+        self._clear_delete_queue()
+        messagebox.showinfo("Done", "Photos deleted from server.")
+
+    def _delete_failed(self):
+        self.processing = False
+        self.del_exec_btn.config(text="DELETE FROM SERVER", fg=MUTED, cursor="hand2")
+        messagebox.showerror("Delete Failed", "Check the log for details.")
 
 
 if __name__ == "__main__":
