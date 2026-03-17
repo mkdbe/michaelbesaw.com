@@ -79,6 +79,14 @@
         }
         .refresh-btn:hover { border-color: rgba(255,255,255,0.18); color: var(--text); }
 
+        /* Filter info */
+        .filter-info {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--dim);
+            letter-spacing: 0.03em;
+        }
+
         /* KPI Row */
         .kpi-row {
             display: grid;
@@ -220,6 +228,8 @@
         .chip.mobile  { border-color: rgba(200,184,154,0.25); color: rgba(200,184,154,0.6); }
         .chip.desktop { border-color: rgba(180,200,180,0.2);  color: rgba(180,200,180,0.55); }
         .chip.tablet  { border-color: rgba(180,180,210,0.2);  color: rgba(180,180,210,0.55); }
+        .chip.human   { border-color: rgba(130,200,130,0.3);  color: rgba(130,200,130,0.6); }
+        .chip.bot     { border-color: rgba(200,130,130,0.25); color: rgba(200,130,130,0.5); }
         .empty { font-family: var(--mono); font-size: 12px; color: var(--dim); padding: 16px 0 4px; font-style: italic; }
 
         @media (max-width: 900px) {
@@ -231,6 +241,7 @@
             body { padding: 20px 14px 60px; }
             .kpi-value { font-size: 30px; }
             .header-right .last-updated { display: none; }
+            .header-right .filter-info { display: none; }
         }
     </style>
 </head>
@@ -243,6 +254,7 @@
         <span class="page-label">analytics</span>
     </div>
     <div class="header-right">
+        <span class="filter-info" id="filter-info"></span>
         <span class="last-updated" id="ts"></span>
         <button class="refresh-btn" id="filter-btn" onclick="toggleFilter()">show bots</button>
         <button class="refresh-btn" onclick="location.reload()">↺ refresh</button>
@@ -253,6 +265,12 @@
 
 <script>
 let showHumansOnly = true;
+
+// Human classification: duration >= 120s AND clicks >= 1
+function isHuman(v) {
+    return (v.duration || 0) >= 120 && (v.navigations || 0) >= 1;
+}
+
 function toggleFilter() {
     showHumansOnly = !showHumansOnly;
     const btn = document.getElementById('filter-btn');
@@ -274,11 +292,16 @@ async function init() {
     }
 
     const allVisits = data.visits || [];
-    const visits = showHumansOnly
-        ? allVisits.filter(v => v.duration > 0 || v.navigations > 0)
-        : allVisits;
+    const humanCount = allVisits.filter(v => isHuman(v)).length;
+    const botCount = allVisits.length - humanCount;
+    const visits = showHumansOnly ? allVisits.filter(v => isHuman(v)) : allVisits;
     const total = visits.length;
     const now = Date.now();
+
+    // Update filter info
+    document.getElementById('filter-info').textContent = showHumansOnly
+        ? `${humanCount} humans · ${botCount} bots filtered`
+        : `${allVisits.length} total · ${humanCount} humans · ${botCount} bots`;
 
     document.getElementById('ts').textContent = new Date().toLocaleString('en-US', {
         timeZone:'America/New_York', month:'short', day:'numeric',
@@ -364,7 +387,7 @@ async function init() {
     // Table rows
     const recent = visits.slice(-50).reverse();
     const rowsHtml = !recent.length
-        ? '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--dim);font-style:italic">no visits yet</td></tr>'
+        ? '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--dim);font-style:italic">no visits yet</td></tr>'
         : recent.map(v => {
             let src = 'Direct';
             const r = v.referer||'';
@@ -384,6 +407,8 @@ async function init() {
             });
             const dev = (v.device||'').toLowerCase();
             const chip = dev==='mobile'?'mobile':dev==='tablet'?'tablet':'desktop';
+            const humanOrBot = isHuman(v) ? 'human' : 'bot';
+            const humanLabel = isHuman(v) ? '✓ human' : '✗ bot';
             return `<tr>
                 <td class="bright">${est}</td>
                 <td class="dim">${v.ip||'—'}</td>
@@ -394,6 +419,7 @@ async function init() {
                 <td>${fmtDur(v.duration||0)}</td>
                 <td class="bright">${v.navigations||0}</td>
                 <td>${src}</td>
+                <td><span class="chip ${humanOrBot}">${humanLabel}</span></td>
             </tr>`;
         }).join('');
 
@@ -401,7 +427,8 @@ async function init() {
     <div class="kpi-row">
         <div class="kpi">
             <div class="kpi-value">${total}</div>
-            <div class="kpi-label">Total Visits</div>
+            <div class="kpi-label">${showHumansOnly ? 'Human Visits' : 'Total Visits'}</div>
+            ${!showHumansOnly ? `<div class="kpi-sub">${humanCount} humans · ${botCount} bots</div>` : ''}
         </div>
         <div class="kpi">
             <div class="kpi-value">${last24h}</div>
@@ -455,7 +482,7 @@ async function init() {
                 <thead><tr>
                     <th>Time (EST)</th><th>IP</th><th>Location</th>
                     <th>Device</th><th>OS</th><th>Browser</th>
-                    <th>Duration</th><th>Clicks</th><th>Source</th>
+                    <th>Duration</th><th>Clicks</th><th>Source</th><th>Type</th>
                 </tr></thead>
                 <tbody>${rowsHtml}</tbody>
             </table>

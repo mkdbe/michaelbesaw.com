@@ -33,6 +33,12 @@ if (!fs.existsSync(ANALYTICS_FILE)) {
 // Known bot user agent patterns
 const BOT_PATTERNS = /bot|crawler|spider|googlebot|bingbot|yandex|baidu|semrush|ahrefsbot|mj12bot|dotbot|python-requests|curl|wget|libwww|go-http-client|scrapy|slackbot|pinterest|whatsapp|facebookexternalhit/i;
 
+// ── Human classification ──────────────────────────────────────────────
+// A human must have: duration >= 120 seconds AND at least 1 click
+function isHumanVisit(visit) {
+    return (visit.duration || 0) >= 120 && (visit.navigations || 0) >= 1;
+}
+
 // ── Email notification setup ──────────────────────────────────────────
 const resend = new Resend("re_Ney6x6dy_GaHZwQ41q4uC2qtR6vvrqRVL");
 const recentlyNotified = new Map();  // 1hr cooldown per IP
@@ -95,11 +101,8 @@ function scheduleVisitorNotification(ip) {
 
             if (!visit) return;
 
-            const clicks = visit.navigations || 0;
-            const duration = visit.duration || 0;
-
-            // Only notify if 2+ clicks AND 30+ seconds
-            if (clicks >= 2 && duration >= 30) {
+            // Only notify if classified as human: duration >= 120s AND clicks >= 1
+            if (isHumanVisit(visit)) {
                 recentlyNotified.set(ip, Date.now());
                 if (recentlyNotified.size > 100) {
                     for (const [k, t] of recentlyNotified.entries())
