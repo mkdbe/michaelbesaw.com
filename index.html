@@ -416,6 +416,8 @@
         let touchEndX = 0;
         let lastDirection = 'next'; // Track last swipe direction
 
+        const SEEN_KEY = 'gallery_seen';
+
         // Load images from server
         async function loadImages() {
             try {
@@ -473,7 +475,7 @@
             }
         }
 
-        // Shuffle array function
+        // Shuffle array function (Fisher-Yates)
         function shuffleArray(array) {
             const newArray = [...array];
             for (let i = newArray.length - 1; i > 0; i--) {
@@ -483,9 +485,45 @@
             return newArray;
         }
 
-        // Initialize gallery
+        // Get seen photos from sessionStorage
+        function getSeenPhotos() {
+            try {
+                return JSON.parse(sessionStorage.getItem(SEEN_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        // Mark a photo as seen
+        function markSeen(url) {
+            const seen = getSeenPhotos();
+            if (!seen.includes(url)) {
+                seen.push(url);
+                sessionStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+            }
+        }
+
+        // Initialize gallery with unseen-first ordering
         function initGallery() {
-            images = shuffleArray(images);
+            let seen = getSeenPhotos();
+
+            // If every photo has been seen, reset the cycle
+            const allUrls = images.map(img => img.url);
+            const unseenUrls = allUrls.filter(url => !seen.includes(url));
+
+            if (unseenUrls.length === 0) {
+                // Full cycle complete — clear seen list and start fresh
+                seen = [];
+                sessionStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+            }
+
+            // Split into unseen and seen groups
+            const unseen = images.filter(img => !seen.includes(img.url));
+            const seenImages = images.filter(img => seen.includes(img.url));
+
+            // Shuffle each group independently, unseen first
+            images = [...shuffleArray(unseen), ...shuffleArray(seenImages)];
+
             const gallery = document.getElementById('gallery');
             gallery.innerHTML = '';
             
@@ -498,7 +536,8 @@
                     slide.style.backgroundImage = `url('${img.url}')`;
                     slide.classList.add('active');
                     slide.style.opacity = '1';
-                    updatePhotoDate(0); // Show date for first image
+                    updatePhotoDate(0);
+                    markSeen(img.url); // Mark first photo as seen
                 } else if (index === 1) {
                     // Preload second image immediately to prevent glitch
                     slide.style.backgroundImage = `url('${img.url}')`;
@@ -625,7 +664,8 @@
             }
             
             currentIndex = index;
-            updatePhotoDate(index); // Update date when changing photos
+            updatePhotoDate(index);
+            markSeen(images[index].url); // Mark photo as seen when displayed
         }
 
         // Next slide
