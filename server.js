@@ -52,6 +52,14 @@ function fireVisitorNotification(visit) {
         ? `${Math.floor(duration / 60)}m ${duration % 60}s`
         : `${duration}s`;
 
+    // Build source string for email
+    let source = visit.referer || 'Direct';
+    if (visit.utm_source) {
+        source = visit.utm_source;
+        if (visit.utm_medium) source += ` / ${visit.utm_medium}`;
+        if (visit.utm_campaign) source += ` (${visit.utm_campaign})`;
+    }
+
     resend.emails.send({
         from: "onboarding@resend.dev",
         to: "mbesaw@gmail.com",
@@ -69,7 +77,7 @@ function fireVisitorNotification(visit) {
       <tr><td style="color:#888;padding:6px 0;">DEVICE</td><td style="color:#e0e0e0;padding:6px 0;">${visit.device}</td></tr>
       <tr><td style="color:#888;padding:6px 0;">OS</td><td style="color:#e0e0e0;padding:6px 0;">${visit.os}</td></tr>
       <tr><td style="color:#888;padding:6px 0;">BROWSER</td><td style="color:#e0e0e0;padding:6px 0;">${visit.browser}</td></tr>
-      <tr><td style="color:#888;padding:6px 0;">REFERRER</td><td style="color:#e0e0e0;padding:6px 0;">${visit.referer}</td></tr>
+      <tr><td style="color:#888;padding:6px 0;">SOURCE</td><td style="color:#e0e0e0;padding:6px 0;">${source}</td></tr>
       <tr><td style="color:#888;padding:6px 0;">PAGES VIEWED</td><td style="color:#ff6b35;padding:6px 0;font-weight:bold;">${clicks}</td></tr>
       <tr><td style="color:#888;padding:6px 0;">TIME ON SITE</td><td style="color:#ff6b35;padding:6px 0;font-weight:bold;">${durationStr}</td></tr>
     </table>
@@ -328,6 +336,51 @@ app.get('/api/about', (req, res) => {
     } catch (error) {
         console.error('Error reading about.txt:', error);
         res.status(500).json({ error: 'Failed to read about content' });
+    }
+});
+
+// API endpoint to track page views with referrer + UTM params (from client JS)
+app.post('/api/track', express.json(), (req, res) => {
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+
+    const visitorIP = req.headers['x-forwarded-for'] ||
+                      req.headers['x-real-ip'] ||
+                      req.ip ||
+                      req.connection.remoteAddress;
+
+    const realIP = visitorIP.split(',')[0].trim();
+
+    if (BOT_PATTERNS.test(userAgent)) return res.json({ success: true });
+    if (EXCLUDED_IPS.includes(realIP)) return res.json({ success: true });
+
+    try {
+        const data = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
+
+        // Find this visitor's most recent visit (created by logVisit middleware on GET /)
+        const visit = data.visits
+            .filter(v => v.ip === realIP)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+        if (visit) {
+            // Client-sent referrer (document.referrer) is more reliable for
+            // tracking where the user actually came from
+            const clientReferer = req.body.referer || '';
+            if (clientReferer && clientReferer !== 'Direct') {
+                visit.referer = clientReferer;
+            }
+
+            // Store UTM params if present
+            if (req.body.utm_source)   visit.utm_source   = req.body.utm_source;
+            if (req.body.utm_medium)   visit.utm_medium   = req.body.utm_medium;
+            if (req.body.utm_campaign) visit.utm_campaign  = req.body.utm_campaign;
+
+            fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(data, null, 2));
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Track error:', err);
+        res.status(500).json({ error: 'Failed to track' });
     }
 });
 

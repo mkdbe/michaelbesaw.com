@@ -884,12 +884,30 @@
 
 
 <script>
-// Analytics tracking
-fetch('/api/track', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: window.location.pathname, referer: document.referrer || 'Direct' })
-}).catch(() => {});
+// Analytics tracking — referrer + UTM params
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const utmSource   = params.get('utm_source')   || '';
+    const utmMedium   = params.get('utm_medium')   || '';
+    const utmCampaign = params.get('utm_campaign')  || '';
+
+    fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            path: window.location.pathname,
+            referer: document.referrer || 'Direct',
+            utm_source: utmSource,
+            utm_medium: utmMedium,
+            utm_campaign: utmCampaign
+        })
+    }).catch(() => {});
+
+    // Strip UTM params from URL bar without reload
+    if (utmSource || utmMedium || utmCampaign) {
+        window.history.replaceState({}, '', window.location.pathname);
+    }
+})();
 
 // Heartbeat every 10 seconds
 setInterval(() => {

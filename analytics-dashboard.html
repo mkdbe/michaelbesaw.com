@@ -271,6 +271,39 @@ function isHuman(v) {
     return (v.duration || 0) >= 120 && (v.navigations || 0) >= 1;
 }
 
+// Source categorization — UTM takes priority, then referrer parsing
+function getSource(v) {
+    // UTM source is explicit attribution — always use it if present
+    if (v.utm_source) {
+        let s = v.utm_source.charAt(0).toUpperCase() + v.utm_source.slice(1);
+        return s;
+    }
+
+    const r = v.referer || '';
+    if (!r || r === 'Direct') return 'Direct';
+
+    if (/google/i.test(r))                return 'Google';
+    if (/bing/i.test(r))                  return 'Bing';
+    if (/duckduckgo/i.test(r))            return 'DuckDuckGo';
+    if (/bsky\.app|bluesky/i.test(r))     return 'Bluesky';
+    if (/facebook|fb\.com/i.test(r))      return 'Facebook';
+    if (/twitter|x\.com|t\.co/i.test(r))  return 'Twitter/X';
+    if (/instagram/i.test(r))             return 'Instagram';
+    if (/linkedin/i.test(r))              return 'LinkedIn';
+    if (/reddit/i.test(r))                return 'Reddit';
+    if (/youtube/i.test(r))               return 'YouTube';
+    if (/pinterest/i.test(r))             return 'Pinterest';
+    if (/threads\.net/i.test(r))          return 'Threads';
+    if (/mastodon/i.test(r))              return 'Mastodon';
+
+    // Show actual domain for unknown referrers
+    try {
+        return new URL(r).hostname.replace('www.', '');
+    } catch {
+        return 'Other';
+    }
+}
+
 function toggleFilter() {
     showHumansOnly = !showHumansOnly;
     const btn = document.getElementById('filter-btn');
@@ -324,23 +357,14 @@ async function init() {
     const devices  = countBy('device');
     const browsers = countBy('browser');
     const oses     = countBy('os');
-    const locs     = countBy('location');
 
+    // Sources — uses getSource() for both UTM and referrer
     const sources = visits.reduce((a,v) => {
-        let s = 'Direct';
-        const r = v.referer || '';
-        if (r && r !== 'Direct') {
-            if (/google/i.test(r)) s = 'Google';
-            else if (/bing/i.test(r)) s = 'Bing';
-            else if (/facebook|fb/i.test(r)) s = 'Facebook';
-            else if (/twitter|t\.co/i.test(r)) s = 'Twitter';
-            else if (/instagram/i.test(r)) s = 'Instagram';
-            else if (/linkedin/i.test(r)) s = 'LinkedIn';
-            else if (/reddit/i.test(r)) s = 'Reddit';
-            else s = 'Other';
-        }
+        const s = getSource(v);
         a[s] = (a[s]||0)+1; return a;
     }, {});
+
+    const locs = countBy('location');
 
     // Sparkline (last 14 days)
     const dayKeys = [], dayDisplay = [];
@@ -389,18 +413,7 @@ async function init() {
     const rowsHtml = !recent.length
         ? '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--dim);font-style:italic">no visits yet</td></tr>'
         : recent.map(v => {
-            let src = 'Direct';
-            const r = v.referer||'';
-            if (r && r!=='Direct') {
-                if (/google/i.test(r)) src='Google';
-                else if (/bing/i.test(r)) src='Bing';
-                else if (/facebook|fb/i.test(r)) src='Facebook';
-                else if (/twitter|t\.co/i.test(r)) src='Twitter';
-                else if (/instagram/i.test(r)) src='Instagram';
-                else if (/linkedin/i.test(r)) src='LinkedIn';
-                else if (/reddit/i.test(r)) src='Reddit';
-                else src='Other';
-            }
+            const src = getSource(v);
             const est = new Date(v.timestamp).toLocaleString('en-US',{
                 timeZone:'America/New_York', month:'2-digit', day:'2-digit',
                 hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
