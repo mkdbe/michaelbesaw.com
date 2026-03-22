@@ -268,8 +268,11 @@ let showHumansOnly = true;
 
 // Human classification: duration >= 120s AND clicks >= 1
 function isHuman(v) {
-    return (v.duration || 0) >= 120 && (v.navigations || 0) >= 1;
+    if (/rochester/i.test(v.location || '')) return true;
+    return (v.duration || 0) >= 30 && (v.navigations || 0) >= 1;
 }
+
+
 
 // Source categorization — UTM takes priority, then referrer parsing
 function getSource(v) {

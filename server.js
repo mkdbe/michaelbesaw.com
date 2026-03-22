@@ -34,9 +34,10 @@ if (!fs.existsSync(ANALYTICS_FILE)) {
 const BOT_PATTERNS = /bot|crawler|spider|googlebot|bingbot|yandex|baidu|semrush|ahrefsbot|mj12bot|dotbot|python-requests|curl|wget|libwww|go-http-client|scrapy|slackbot|pinterest|whatsapp|facebookexternalhit/i;
 
 // ── Human classification ──────────────────────────────────────────────
-// A human must have: duration >= 120 seconds AND at least 1 click
 function isHumanVisit(visit) {
-    return (visit.duration || 0) >= 120 && (visit.navigations || 0) >= 1;
+    // Rochester-area geo override — always count as human
+    if (/rochester/i.test(visit.location || '')) return true;
+    return (visit.duration || 0) >= 30 && (visit.navigations || 0) >= 1;
 }
 
 // ── Email notification setup ──────────────────────────────────────────
@@ -252,7 +253,7 @@ if (!fs.existsSync(CONTENT_DIR)) {
 }
 
 // Serve static files
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, { index: false }));
 
 // Serve photos with mobile optimization
 app.use('/photos', (req, res, next) => {
@@ -269,9 +270,9 @@ app.use('/photos', (req, res, next) => {
     etag: true
 }));
 
-// Serve the portfolio page at root (with analytics)
+// Serve the index page at root (with analytics)
 app.get('/', logVisit, (req, res) => {
-    res.sendFile(path.join(__dirname, 'portfolio.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // API endpoint to get list of images with metadata
