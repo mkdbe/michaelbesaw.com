@@ -231,7 +231,11 @@
         }
 
         /* Hide date in landscape mode on mobile */
-        @media (max-width: 768px) and (orientation: landscape) {
+        @function isHuman(v) {
+    return (v.duration || 0) >= 120 && (v.navigations || 0) >= 1;
+}
+
+media (max-width: 768px) and (orientation: landscape) {
             .photo-date {
                 display: none;
             }
@@ -358,7 +362,7 @@
             display: none;
         }
 
-        @media (max-width: 768px) {
+       @media (max-width: 768px) {
             .title {
                 font-size: 12px;
                 top: 20px;
@@ -369,10 +373,9 @@
                 font-size: 11px;
                 top: 40px;
                 left: 20px;
-                opacity: 1; /* Always visible on mobile portrait */
+                opacity: 0;
             }
         }
-
         /* Hide title and About button in landscape mode on mobile */
         @media (max-width: 768px) and (orientation: landscape) {
             .title,
@@ -723,6 +726,14 @@
         // About overlay controls
         const aboutOverlay = document.getElementById('aboutOverlay');
         const closeBtn = document.getElementById('closeBtn');
+
+        // Mobile: tap title to toggle About button visibility
+        document.getElementById('title').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const btn = document.getElementById('aboutBtn');
+            btn.style.opacity = btn.style.opacity === '1' ? '0' : '1';
+        });
+
 
         aboutBtn.addEventListener('click', () => {
             aboutOverlay.classList.add('active');
