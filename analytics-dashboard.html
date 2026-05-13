@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <title>analytics — michaelbesaw</title>
+    <link rel="icon" type="image/svg+xml" href="/analytics-favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/analytics-favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/analytics-favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/analytics-apple-touch-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;1,300&family=DM+Sans:ital,wght@0,200;0,300;0,400;1,300&display=swap" rel="stylesheet">
@@ -16,7 +20,7 @@
             --text: #f0ebe0;
             --muted: #f0ebe0;
             --dim: rgba(240,235,224,0.55);
-            --accent: #f0ebe0;
+            --accent: #2277cc;
             --mono: 'DM Mono', monospace;
             --sans: 'DM Sans', sans-serif;
         }
@@ -59,7 +63,7 @@
             color: var(--muted);
             letter-spacing: 0.04em;
         }
-        .header-right { display: flex; align-items: center; gap: 16px; }
+        .header-right { display: flex; align-items: center; gap: 16px; position: relative; }
         .last-updated {
             font-family: var(--mono);
             font-size: 11px;
@@ -85,6 +89,26 @@
             font-size: 10px;
             color: var(--dim);
             letter-spacing: 0.03em;
+        }
+
+        .rules-box {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 40px;
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 16px 20px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.7;
+            z-index: 10;
+            max-width: 340px;
+        }
+        .rules-box strong {
+            color: var(--text);
+            letter-spacing: 0.08em;
         }
 
         /* KPI Row */
@@ -256,6 +280,14 @@
     <div class="header-right">
         <span class="filter-info" id="filter-info"></span>
         <span class="last-updated" id="ts"></span>
+        <button class="refresh-btn" id="rules-btn" onclick="toggleRules()" title="Classification rules">ⓘ rules</button>
+        <div class="rules-box" id="rules-box">
+            <strong>HUMAN CLASSIFICATION</strong><br>
+            Duration ≥ 30s <span style="color:var(--dim)">AND</span> Clicks ≥ 1<br><br>
+            <strong>GEO OVERRIDE</strong><br>
+            Rochester-area visitors → always human<br><br>
+            <span style="color:var(--dim);">Everything else = bot</span>
+        </div>
         <button class="refresh-btn" id="filter-btn" onclick="toggleFilter()">show bots</button>
         <button class="refresh-btn" onclick="location.reload()">↺ refresh</button>
     </div>
@@ -266,7 +298,7 @@
 <script>
 let showHumansOnly = true;
 
-// Human classification: duration >= 120s AND clicks >= 1
+// Human classification: duration >= 30s AND clicks >= 1
 function isHuman(v) {
     if (/rochester/i.test(v.location || '')) return true;
     return (v.duration || 0) >= 30 && (v.navigations || 0) >= 1;
@@ -306,6 +338,19 @@ function getSource(v) {
         return 'Other';
     }
 }
+
+function toggleRules() {
+    const box = document.getElementById('rules-box');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+document.addEventListener('click', function(e) {
+    const box = document.getElementById('rules-box');
+    const btn = document.getElementById('rules-btn');
+    if (box && box.style.display === 'block' && !box.contains(e.target) && e.target !== btn) {
+        box.style.display = 'none';
+    }
+});
 
 function toggleFilter() {
     showHumansOnly = !showHumansOnly;
