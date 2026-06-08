@@ -31,7 +31,7 @@ if (!fs.existsSync(ANALYTICS_FILE)) {
 }
 
 // Known bot user agent patterns
-const BOT_PATTERNS = /bot|crawler|spider|googlebot|bingbot|yandex|baidu|semrush|ahrefsbot|mj12bot|dotbot|python-requests|curl|wget|libwww|go-http-client|scrapy|slackbot|pinterest|whatsapp|facebookexternalhit/i;
+const BOT_PATTERNS = /bot|crawler|spider|googlebot|bingbot|yandex|baidu|semrush|ahrefsbot|mj12bot|dotbot|python-requests|curl|wget|libwww|go-http-client|scrapy|slackbot|pinterest|whatsapp|facebookexternalhit|uptime-kuma/i;
 
 // ── Human classification ──────────────────────────────────────────────
 function isHumanVisit(visit) {
@@ -485,7 +485,7 @@ app.use((req, res) => {
     res.status(404).send('Not Found');
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '127.0.0.1', () => {
     console.log(`
 ========================================
 Photography Portfolio Server Running
