@@ -17,7 +17,7 @@ const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
 
 // Exclude these IPs from analytics (add your own IP addresses here)
 const EXCLUDED_IPS = [
-    '38.49.72.41',
+    '38.49.92.159',
     // Add your IP addresses here, one per line
     // '123.456.789.0',        // Example: Your home IP
     // '::1',                  // Localhost IPv6
@@ -63,7 +63,7 @@ function fireVisitorNotification(visit) {
 
     resend.emails.send({
         from: "onboarding@resend.dev",
-        to: "mbesaw@gmail.com",
+        to: "mdbe@me.com",
         subject: `👤 New visitor on michaelbesaw.com — ${visit.location}`,
         html: `<!DOCTYPE html>
 <html>
