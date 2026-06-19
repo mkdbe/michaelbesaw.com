@@ -64,7 +64,7 @@
             color: var(--muted);
             letter-spacing: 0.04em;
         }
-        .header-right { display: flex; align-items: center; gap: 16px; position: relative; }
+        .header-right { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 12px 16px; position: relative; }
         .last-updated {
             font-family: var(--mono);
             font-size: 11px;
@@ -266,8 +266,11 @@
         @media (max-width: 560px) {
             body { padding: 20px 14px 60px; }
             .kpi-value { font-size: 30px; }
+            .header { align-items: flex-start; }
+            .header-right { gap: 8px 10px; }
             .header-right .last-updated { display: none; }
             .header-right .filter-info { display: none; }
+            .refresh-btn { padding: 6px 12px; font-size: 10px; }
         }
     </style>
 </head>
@@ -286,13 +289,14 @@
         <div class="rules-box" id="rules-box">
             <strong>HUMAN</strong><br>
             Duration ≥ 30s <span style="color:var(--dim)">AND</span> Clicks ≥ 1<br><br>
-            <strong>LURKER (NO CLICKS)</strong><br>
-            Duration > 0s, no navigation<br><br>
+            <strong>LURKER</strong><br>
+            Duration > 0s, otherwise doesn't meet Human<br><br>
             <strong>GEO OVERRIDE</strong><br>
             Rochester-area visitors → always human<br><br>
             <span style="color:var(--dim);">Everything else = bot</span>
         </div>
-        <button class="refresh-btn" id="filter-btn" onclick="toggleFilter()">show bots</button>
+        <button class="refresh-btn" id="filter-btn" onclick="toggleBotFilter()">show bots</button>
+        <button class="refresh-btn" id="lurker-filter-btn" onclick="toggleLurkerFilter()">show lurkers</button>
         <button class="refresh-btn" onclick="location.reload()">↺ refresh</button>
     </div>
 </div>
@@ -300,7 +304,8 @@
 <div id="root" style="font-family:'DM Mono',monospace;font-size:12px;color:rgba(232,224,208,0.25);padding:60px 0;text-align:center">loading…</div>
 
 <script>
-let showHumansOnly = true;
+let hideBots = true;
+let hideLurkers = true;
 
 // Classification: human (duration >= 30s AND clicks >= 1), lurker (duration > 0s, no clicks), else bot
 function classify(v) {
@@ -361,12 +366,21 @@ document.addEventListener('click', function(e) {
     }
 });
 
-function toggleFilter() {
-    showHumansOnly = !showHumansOnly;
+function toggleBotFilter() {
+    hideBots = !hideBots;
     const btn = document.getElementById('filter-btn');
-    btn.textContent = showHumansOnly ? 'show bots' : 'hide bots';
-    btn.style.borderColor = showHumansOnly ? 'rgba(255,255,255,0.4)' : '';
-    btn.style.color = showHumansOnly ? 'var(--text)' : '';
+    btn.textContent = hideBots ? 'show bots' : 'hide bots';
+    btn.style.borderColor = hideBots ? '' : 'rgba(255,255,255,0.4)';
+    btn.style.color = hideBots ? '' : 'var(--text)';
+    init();
+}
+
+function toggleLurkerFilter() {
+    hideLurkers = !hideLurkers;
+    const btn = document.getElementById('lurker-filter-btn');
+    btn.textContent = hideLurkers ? 'show lurkers' : 'hide lurkers';
+    btn.style.borderColor = hideLurkers ? '' : 'rgba(255,255,255,0.4)';
+    btn.style.color = hideLurkers ? '' : 'var(--text)';
     init();
 }
 
@@ -385,14 +399,18 @@ async function init() {
     const humanCount = allVisits.filter(v => classify(v) === 'human').length;
     const lurkerCount = allVisits.filter(v => classify(v) === 'lurker').length;
     const botCount = allVisits.length - humanCount - lurkerCount;
-    const visits = showHumansOnly ? allVisits.filter(v => classify(v) !== 'bot') : allVisits;
+    const visits = allVisits.filter(v => {
+        const c = classify(v);
+        if (c === 'bot' && hideBots) return false;
+        if (c === 'lurker' && hideLurkers) return false;
+        return true;
+    });
     const total = visits.length;
     const now = Date.now();
 
     // Update filter info
-    document.getElementById('filter-info').textContent = showHumansOnly
-        ? `${humanCount} humans · ${lurkerCount} lurkers · ${botCount} bots filtered`
-        : `${allVisits.length} total · ${humanCount} humans · ${lurkerCount} lurkers · ${botCount} bots`;
+    document.getElementById('filter-info').textContent =
+        `${humanCount} humans · ${lurkerCount} lurkers${hideLurkers ? ' (hidden)' : ''} · ${botCount} bots${hideBots ? ' (hidden)' : ''}`;
 
     document.getElementById('ts').textContent = new Date().toLocaleString('en-US', {
         timeZone:'America/New_York', month:'short', day:'numeric',
@@ -499,8 +517,8 @@ async function init() {
     <div class="kpi-row">
         <div class="kpi">
             <div class="kpi-value">${total}</div>
-            <div class="kpi-label">${showHumansOnly ? 'Human Visits' : 'Total Visits'}</div>
-            ${!showHumansOnly ? `<div class="kpi-sub">${humanCount} humans · ${lurkerCount} lurkers · ${botCount} bots</div>` : ''}
+            <div class="kpi-label">Visits Shown</div>
+            <div class="kpi-sub">${humanCount} humans · ${lurkerCount} lurkers · ${botCount} bots</div>
         </div>
         <div class="kpi">
             <div class="kpi-value">${last24h}</div>
