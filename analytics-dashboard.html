@@ -433,9 +433,9 @@ async function init() {
 
     const locs = countBy('location');
 
-    // Sparkline (last 14 days)
+    // Sparkline (last 30 days)
     const dayKeys = [], dayDisplay = [];
-    for (let i = 13; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
         dayKeys.push(d.toISOString().slice(0,10));
         dayDisplay.push(i===0 ? 'today' : d.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
@@ -528,8 +528,8 @@ async function init() {
 
     <div class="spark-card">
         <div class="spark-header">
-            <span class="spark-title">Daily visits — last 14 days</span>
-            <span class="spark-dates">${dayKeys[0]} → ${dayKeys[13]}</span>
+            <span class="spark-title">Daily visits — last 30 days</span>
+            <span class="spark-dates">${dayKeys[0]} → ${dayKeys[29]}</span>
         </div>
         <div class="sparkline-wrap">
             ${sv.map((n,i) => {
