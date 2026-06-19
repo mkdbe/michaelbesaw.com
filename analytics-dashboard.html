@@ -377,6 +377,7 @@ function cycleFilter() {
 
 async function init() {
     const root = document.getElementById('root');
+    root.removeAttribute('style'); // clear the loading-placeholder's inline padding/centering
     let data;
     try {
         const r = await fetch('/api/analytics');
