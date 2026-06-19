@@ -89,6 +89,7 @@
             transition: all 0.15s;
         }
         .refresh-btn:hover { border-color: rgba(255,255,255,0.18); color: var(--text); }
+        #filter-btn { display: inline-block; width: 64px; text-align: center; }
 
 
         .rules-box {
@@ -302,7 +303,7 @@
 <div id="root" style="font-family:'DM Mono',monospace;font-size:12px;color:rgba(232,224,208,0.25);padding:60px 0;text-align:center">loading…</div>
 
 <script>
-let filterLevel = 'human'; // 'human' | 'lurker' | 'all' — cumulative: human only, +lurker, +bot
+let filterLevel = 'human'; // 'human' | 'lurker' | 'bot' — exclusive, cycles in this order
 
 // Classification: human (duration >= 30s AND clicks >= 1), lurker (duration > 0s, no clicks), else bot
 function classify(v) {
@@ -363,8 +364,8 @@ document.addEventListener('click', function(e) {
     }
 });
 
-const FILTER_LEVELS = ['human', 'lurker', 'all'];
-const FILTER_LABELS = { human: 'Human', lurker: 'Lurker', all: 'Bot' };
+const FILTER_LEVELS = ['human', 'lurker', 'bot'];
+const FILTER_LABELS = { human: 'Human', lurker: 'Lurker', bot: 'Bot' };
 
 function cycleFilter() {
     const next = FILTER_LEVELS[(FILTER_LEVELS.indexOf(filterLevel) + 1) % FILTER_LEVELS.length];
@@ -388,24 +389,19 @@ async function init() {
     const humanCount = allVisits.filter(v => classify(v) === 'human').length;
     const lurkerCount = allVisits.filter(v => classify(v) === 'lurker').length;
     const botCount = allVisits.length - humanCount - lurkerCount;
-    const visits = allVisits.filter(v => {
-        const c = classify(v);
-        if (filterLevel === 'human') return c === 'human';
-        if (filterLevel === 'lurker') return c === 'human' || c === 'lurker';
-        return true; // 'all'
-    });
+    const visits = allVisits.filter(v => classify(v) === filterLevel);
     const total = visits.length;
     const now = Date.now();
 
-    // Filter info — shown categories first, then any hidden ones grouped under one "filtered" suffix
-    const shown = [`${humanCount} humans`];
-    const hidden = [];
-    if (filterLevel === 'lurker' || filterLevel === 'all') shown.push(`${lurkerCount} lurkers`);
-    else if (lurkerCount) hidden.push(`${lurkerCount} lurkers`);
-    if (filterLevel === 'all') shown.push(`${botCount} bots`);
-    else if (botCount) hidden.push(`${botCount} bots`);
-    document.getElementById('filter-info').textContent =
-        shown.join(' · ') + (hidden.length ? ' · ' + hidden.join(' · ') + ' filtered' : '');
+    // Filter info — current category first, the other two grouped under one "filtered" suffix
+    const counts = { human: humanCount, lurker: lurkerCount, bot: botCount };
+    const labels = { human: 'humans', lurker: 'lurkers', bot: 'bots' };
+    const shownText = `${counts[filterLevel]} ${labels[filterLevel]}`;
+    const hiddenText = Object.keys(labels)
+        .filter(k => k !== filterLevel)
+        .map(k => `${counts[k]} ${labels[k]}`)
+        .join(' · ');
+    document.getElementById('filter-info').textContent = shownText + (hiddenText ? ' · ' + hiddenText + ' filtered' : '');
 
     document.getElementById('ts').textContent = new Date().toLocaleString('en-US', {
         timeZone:'America/New_York', month:'short', day:'numeric',
