@@ -34,11 +34,25 @@ if (!fs.existsSync(ANALYTICS_FILE)) {
 // Known bot user agent patterns
 const BOT_PATTERNS = /bot|crawler|spider|googlebot|bingbot|yandex|baidu|semrush|ahrefsbot|mj12bot|dotbot|python-requests|curl|wget|libwww|go-http-client|scrapy|slackbot|pinterest|whatsapp|facebookexternalhit|uptime-kuma/i;
 
+// Rochester metro: Monroe County + bordering counties (Genesee, Livingston,
+// Ontario, Orleans, Wayne, Wyoming). Many of these town names are common
+// elsewhere in the US (Avon, Geneva, Naples, York, Manchester, Perry,
+// Victor...), so the NY check below is required to avoid false matches.
+const ROCHESTER_METRO_TOWNS = /rochester|brighton|chili|clarkson|east rochester|gates|greece|hamlin|henrietta|irondequoit|mendon|ogden|parma|penfield|perinton|pittsford|riga|rush|sweden|webster|wheatland|brockport|churchville|fairport|hilton|honeoye falls|scottsville|spencerport|batavia|le ?roy|bergen|byron|corfu|alexander|darien|pavilion|pembroke|stafford|oakfield|geneseo|avon|mount morris|dansville|caledonia|lima|lakeville|nunda|leicester|livonia|canandaigua|victor|geneva|farmington|phelps|manchester|clifton springs|naples|honeoye|bristol|shortsville|albion|medina|holley|lyndonville|kendall|clarendon|lyons|newark|palmyra|sodus|williamson|macedon|clyde|wolcott|red creek|ontario|warsaw|attica|arcade|perry|silver springs|pike/i;
+
 // ── Human classification ──────────────────────────────────────────────
+// Human: duration >= 30s, OR Rochester-metro geo override. Visits with an
+// implausible click rate (more than ~1 nav per 2s of duration) are flagged
+// as bot regardless of duration/geo — seen in practice from Tor-exit-node
+// traffic hammering contact forms with dozens of synthetic "navigations"
+// in well under a minute.
 function isHumanVisit(visit) {
-    // Rochester-area geo override — always count as human
-    if (/rochester/i.test(visit.location || '')) return true;
-    return (visit.duration || 0) >= 30 && (visit.navigations || 0) >= 1;
+    const dur = visit.duration || 0;
+    const nav = visit.navigations || 0;
+    if (dur > 0 && nav / dur > 0.5) return false;
+    const loc = visit.location || '';
+    if (/,\s*NY\b/i.test(loc) && ROCHESTER_METRO_TOWNS.test(loc)) return true;
+    return dur >= 30;
 }
 
 // ── Email notification setup ──────────────────────────────────────────

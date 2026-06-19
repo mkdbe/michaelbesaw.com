@@ -295,11 +295,13 @@
         <button class="refresh-btn" id="rules-btn" onclick="toggleBox('rules-box', 'rules-btn')" title="Classification rules">ⓘ rules</button>
         <div class="rules-box" id="rules-box">
             <strong>HUMAN</strong><br>
-            Duration ≥ 30s <span style="color:var(--dim)">AND</span> Clicks ≥ 1<br><br>
+            Duration ≥ 30s, <span style="color:var(--dim)">or</span> Rochester-metro override<br><br>
             <strong>LURKER</strong><br>
-            Duration > 0s, otherwise doesn't meet Human<br><br>
+            Some duration, under 30s — likely bot, unconfirmed<br><br>
             <strong>GEO OVERRIDE</strong><br>
-            Rochester-area visitors → always human<br><br>
+            Monroe County + bordering counties → always human<br><br>
+            <strong>BOT-VELOCITY CHECK</strong><br>
+            &gt;0.5 clicks/sec sustained → always bot<br><br>
             <span style="color:var(--dim);">Everything else = bot</span>
         </div>
         <button class="refresh-btn" id="filter-btn" onclick="cycleFilter()" title="Click to cycle: Human → Lurker → Bot">Human</button>
@@ -312,12 +314,22 @@
 <script>
 let filterLevel = 'human'; // 'human' | 'lurker' | 'bot' — exclusive, cycles in this order
 
-// Classification: human (duration >= 30s AND clicks >= 1), lurker (duration > 0s, no clicks), else bot
+// Rochester metro: Monroe County + bordering counties (Genesee, Livingston,
+// Ontario, Orleans, Wayne, Wyoming). Many of these town names are common
+// elsewhere in the US (Avon, Geneva, Naples, York, Manchester, Perry,
+// Victor...), so the NY check below is required to avoid false matches.
+const ROCHESTER_METRO_TOWNS = /rochester|brighton|chili|clarkson|east rochester|gates|greece|hamlin|henrietta|irondequoit|mendon|ogden|parma|penfield|perinton|pittsford|riga|rush|sweden|webster|wheatland|brockport|churchville|fairport|hilton|honeoye falls|scottsville|spencerport|batavia|le ?roy|bergen|byron|corfu|alexander|darien|pavilion|pembroke|stafford|oakfield|geneseo|avon|mount morris|dansville|caledonia|lima|lakeville|nunda|leicester|livonia|canandaigua|victor|geneva|farmington|phelps|manchester|clifton springs|naples|honeoye|bristol|shortsville|albion|medina|holley|lyndonville|kendall|clarendon|lyons|newark|palmyra|sodus|williamson|macedon|clyde|wolcott|red creek|ontario|warsaw|attica|arcade|perry|silver springs|pike/i;
+
+// Classification: human (duration >= 30s, or Rochester-metro override),
+// lurker (some duration but under 30s — likely bot, unconfirmed), else bot.
+// Implausible click velocity (>0.5 nav/sec of duration) is always bot.
 function classify(v) {
-    if (/rochester/i.test(v.location || '')) return 'human';
     const dur = v.duration || 0;
     const nav = v.navigations || 0;
-    if (dur >= 30 && nav >= 1) return 'human';
+    if (dur > 0 && nav / dur > 0.5) return 'bot';
+    const loc = v.location || '';
+    if (/,\s*NY\b/i.test(loc) && ROCHESTER_METRO_TOWNS.test(loc)) return 'human';
+    if (dur >= 30) return 'human';
     if (dur > 0) return 'lurker';
     return 'bot';
 }
