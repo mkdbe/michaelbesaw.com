@@ -254,6 +254,7 @@
         .chip.desktop { border-color: rgba(180,200,180,0.2);  color: rgba(180,200,180,0.55); }
         .chip.tablet  { border-color: rgba(180,180,210,0.2);  color: rgba(180,180,210,0.55); }
         .chip.human   { border-color: rgba(130,200,130,0.3);  color: rgba(130,200,130,0.6); }
+        .chip.viewed  { border-color: rgba(200,184,130,0.3);  color: rgba(200,184,130,0.6); }
         .chip.bot     { border-color: rgba(200,130,130,0.25); color: rgba(200,130,130,0.5); }
         .empty { font-family: var(--mono); font-size: 12px; color: var(--dim); padding: 16px 0 4px; font-style: italic; }
 
@@ -283,8 +284,10 @@
         <span class="last-updated" id="ts"></span>
         <button class="refresh-btn" id="rules-btn" onclick="toggleRules()" title="Classification rules">ⓘ rules</button>
         <div class="rules-box" id="rules-box">
-            <strong>HUMAN CLASSIFICATION</strong><br>
+            <strong>HUMAN</strong><br>
             Duration ≥ 30s <span style="color:var(--dim)">AND</span> Clicks ≥ 1<br><br>
+            <strong>VIEWED (NO CLICKS)</strong><br>
+            Duration ≥ 10s, no navigation<br><br>
             <strong>GEO OVERRIDE</strong><br>
             Rochester-area visitors → always human<br><br>
             <span style="color:var(--dim);">Everything else = bot</span>
@@ -299,11 +302,16 @@
 <script>
 let showHumansOnly = true;
 
-// Human classification: duration >= 30s AND clicks >= 1
-function isHuman(v) {
-    if (/rochester/i.test(v.location || '')) return true;
-    return (v.duration || 0) >= 30 && (v.navigations || 0) >= 1;
+// Classification: human (duration >= 30s AND clicks >= 1), viewed (duration >= 10s, no clicks), else bot
+function classify(v) {
+    if (/rochester/i.test(v.location || '')) return 'human';
+    const dur = v.duration || 0;
+    const nav = v.navigations || 0;
+    if (dur >= 30 && nav >= 1) return 'human';
+    if (dur >= 10) return 'viewed';
+    return 'bot';
 }
+function isHuman(v) { return classify(v) === 'human'; }
 
 
 
@@ -374,16 +382,17 @@ async function init() {
     }
 
     const allVisits = data.visits || [];
-    const humanCount = allVisits.filter(v => isHuman(v)).length;
-    const botCount = allVisits.length - humanCount;
-    const visits = showHumansOnly ? allVisits.filter(v => isHuman(v)) : allVisits;
+    const humanCount = allVisits.filter(v => classify(v) === 'human').length;
+    const viewedCount = allVisits.filter(v => classify(v) === 'viewed').length;
+    const botCount = allVisits.length - humanCount - viewedCount;
+    const visits = showHumansOnly ? allVisits.filter(v => classify(v) !== 'bot') : allVisits;
     const total = visits.length;
     const now = Date.now();
 
     // Update filter info
     document.getElementById('filter-info').textContent = showHumansOnly
-        ? `${humanCount} humans · ${botCount} bots filtered`
-        : `${allVisits.length} total · ${humanCount} humans · ${botCount} bots`;
+        ? `${humanCount} humans · ${viewedCount} viewed · ${botCount} bots filtered`
+        : `${allVisits.length} total · ${humanCount} humans · ${viewedCount} viewed · ${botCount} bots`;
 
     document.getElementById('ts').textContent = new Date().toLocaleString('en-US', {
         timeZone:'America/New_York', month:'short', day:'numeric',
@@ -469,8 +478,9 @@ async function init() {
             });
             const dev = (v.device||'').toLowerCase();
             const chip = dev==='mobile'?'mobile':dev==='tablet'?'tablet':'desktop';
-            const humanOrBot = isHuman(v) ? 'human' : 'bot';
-            const humanLabel = isHuman(v) ? '✓ human' : '✗ bot';
+            const cls = classify(v);
+            const humanOrBot = cls;
+            const humanLabel = cls === 'human' ? '✓ human' : cls === 'viewed' ? '◐ viewed' : '✗ bot';
             return `<tr>
                 <td class="bright">${est}</td>
                 <td class="dim">${v.ip||'—'}</td>
@@ -490,7 +500,7 @@ async function init() {
         <div class="kpi">
             <div class="kpi-value">${total}</div>
             <div class="kpi-label">${showHumansOnly ? 'Human Visits' : 'Total Visits'}</div>
-            ${!showHumansOnly ? `<div class="kpi-sub">${humanCount} humans · ${botCount} bots</div>` : ''}
+            ${!showHumansOnly ? `<div class="kpi-sub">${humanCount} humans · ${viewedCount} viewed · ${botCount} bots</div>` : ''}
         </div>
         <div class="kpi">
             <div class="kpi-value">${last24h}</div>

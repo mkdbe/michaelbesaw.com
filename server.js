@@ -341,7 +341,7 @@ app.get('/api/about', (req, res) => {
 });
 
 // API endpoint to track page views with referrer + UTM params (from client JS)
-app.post('/api/track', express.json(), (req, res) => {
+app.post('/api/visit', express.json(), (req, res) => {
     const userAgent = req.headers['user-agent'] || 'Unknown';
 
     const visitorIP = req.headers['x-forwarded-for'] ||
@@ -386,7 +386,7 @@ app.post('/api/track', express.json(), (req, res) => {
 });
 
 // API endpoint to track photo navigation
-app.post('/api/track-nav', express.json(), (req, res) => {
+app.post('/api/interaction', express.json(), (req, res) => {
     const userAgent = req.headers['user-agent'] || 'Unknown';
     
     const visitorIP = req.headers['x-forwarded-for'] || 
@@ -425,7 +425,7 @@ app.post('/api/track-nav', express.json(), (req, res) => {
 });
 
 // API endpoint to track heartbeat (for session duration)
-app.post('/api/heartbeat', express.json(), (req, res) => {
+app.post('/api/ping', express.json(), (req, res) => {
     const userAgent = req.headers['user-agent'] || 'Unknown';
     
     const visitorIP = req.headers['x-forwarded-for'] || 
