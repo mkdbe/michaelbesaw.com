@@ -65,6 +65,12 @@
             letter-spacing: 0.04em;
         }
         .header-right { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 12px 16px; position: relative; }
+        .filter-info {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--dim);
+            letter-spacing: 0.03em;
+        }
         .last-updated {
             font-family: var(--mono);
             font-size: 11px;
@@ -262,6 +268,7 @@
             .header { align-items: flex-start; }
             .header-right { gap: 8px 10px; }
             .header-right .last-updated { display: none; }
+            .header-right .filter-info { display: none; }
             .refresh-btn { padding: 6px 12px; font-size: 10px; }
         }
     </style>
@@ -275,6 +282,7 @@
         <span class="page-label">analytics</span>
     </div>
     <div class="header-right">
+        <span class="filter-info" id="filter-info"></span>
         <span class="last-updated" id="ts"></span>
         <button class="refresh-btn" id="rules-btn" onclick="toggleBox('rules-box', 'rules-btn')" title="Classification rules">ⓘ rules</button>
         <div class="rules-box" id="rules-box">
@@ -403,6 +411,16 @@ async function init() {
     });
     const total = visits.length;
     const now = Date.now();
+
+    // Filter info — shown categories first, then any hidden ones grouped under one "filtered" suffix
+    const shown = [`${humanCount} humans`];
+    const hidden = [];
+    if (filterLevel === 'lurker' || filterLevel === 'all') shown.push(`${lurkerCount} lurkers`);
+    else if (lurkerCount) hidden.push(`${lurkerCount} lurkers`);
+    if (filterLevel === 'all') shown.push(`${botCount} bots`);
+    else if (botCount) hidden.push(`${botCount} bots`);
+    document.getElementById('filter-info').textContent =
+        shown.join(' · ') + (hidden.length ? ' · ' + hidden.join(' · ') + ' filtered' : '');
 
     document.getElementById('ts').textContent = new Date().toLocaleString('en-US', {
         timeZone:'America/New_York', month:'short', day:'numeric',
