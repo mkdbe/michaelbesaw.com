@@ -1,5 +1,6 @@
 node_modules/
 analytics.json
+notifications-state.json
 photos/
 *.log
 photos-mobile/

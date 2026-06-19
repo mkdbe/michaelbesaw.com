@@ -897,6 +897,12 @@ media (max-width: 768px) and (orientation: landscape) {
 <script>
 // Analytics tracking — referrer + UTM params
 (function() {
+    function getCookie(name) {
+        const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    const sid = getCookie('mb_sid');
+
     const params = new URLSearchParams(window.location.search);
     const utmSource   = params.get('utm_source')   || '';
     const utmMedium   = params.get('utm_medium')   || '';
@@ -906,6 +912,7 @@ media (max-width: 768px) and (orientation: landscape) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+            sessionId: sid,
             path: window.location.pathname,
             referer: document.referrer || 'Direct',
             utm_source: utmSource,
@@ -918,23 +925,28 @@ media (max-width: 768px) and (orientation: landscape) {
     if (utmSource || utmMedium || utmCampaign) {
         window.history.replaceState({}, '', window.location.pathname);
     }
+
+    // Heartbeat every 10 seconds
+    setInterval(() => {
+        fetch('/api/ping', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sid })
+        }).catch(() => {});
+    }, 10000);
+
+    // Track navigation clicks
+    function sendInteraction() {
+        fetch('/api/interaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sid })
+        }).catch(() => {});
+    }
+    document.addEventListener('keydown', sendInteraction);
+    document.addEventListener('click', sendInteraction);
+    document.addEventListener('touchend', sendInteraction);
 })();
-
-// Heartbeat every 10 seconds
-setInterval(() => {
-    fetch('/api/ping', { method: 'POST' }).catch(() => {});
-}, 10000);
-
-// Track navigation clicks
-document.addEventListener('keydown', () => {
-    fetch('/api/interaction', { method: 'POST' }).catch(() => {});
-});
-document.addEventListener('click', () => {
-    fetch('/api/interaction', { method: 'POST' }).catch(() => {});
-});
-document.addEventListener('touchend', () => {
-    fetch('/api/interaction', { method: 'POST' }).catch(() => {});
-});
 </script>
 
 

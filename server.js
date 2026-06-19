@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { Resend } = require("resend");
 const fs = require('fs');
 const path = require('path');
@@ -42,8 +43,19 @@ function isHumanVisit(visit) {
 
 // ── Email notification setup ──────────────────────────────────────────
 const resend = new Resend("re_Ney6x6dy_GaHZwQ41q4uC2qtR6vvrqRVL");
-const recentlyNotified = new Map();  // 1hr cooldown per IP
-const pendingNotifications = new Map(); // pending 2-min timers per IP
+const NOTIF_STATE_FILE = path.join(__dirname, 'notifications-state.json');
+
+function loadNotifState() {
+    try {
+        return JSON.parse(fs.readFileSync(NOTIF_STATE_FILE, 'utf8'));
+    } catch (err) {
+        return { pending: {}, notifiedIPs: {} };
+    }
+}
+
+function saveNotifState(state) {
+    fs.writeFileSync(NOTIF_STATE_FILE, JSON.stringify(state, null, 2));
+}
 
 function fireVisitorNotification(visit) {
     const now = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
@@ -88,44 +100,53 @@ function fireVisitorNotification(visit) {
     }).catch(err => console.error("Email failed:", err.message));
 }
 
-function scheduleVisitorNotification(ip) {
-    // Reset the 2-minute timer on each new click
-    if (pendingNotifications.has(ip)) {
-        clearTimeout(pendingNotifications.get(ip));
+function scheduleVisitorNotification(sessionId) {
+    const state = loadNotifState();
+    state.pending[sessionId] = Date.now() + 2 * 60 * 1000;
+    saveNotifState(state);
+}
+
+// Persisted to disk so a service restart can't silently drop a notification
+// that was scheduled but hadn't fired yet.
+function processPendingNotifications() {
+    const state = loadNotifState();
+    const now = Date.now();
+    let changed = false;
+
+    for (const [ip, t] of Object.entries(state.notifiedIPs)) {
+        if (now - t > 3600000) {
+            delete state.notifiedIPs[ip];
+            changed = true;
+        }
     }
 
-    const timer = setTimeout(() => {
-        pendingNotifications.delete(ip);
+    for (const [sessionId, dueAt] of Object.entries(state.pending)) {
+        if (dueAt > now) continue;
+        delete state.pending[sessionId];
+        changed = true;
 
-        // Check 1hr cooldown
-        const lastNotified = recentlyNotified.get(ip);
-        if (lastNotified && (Date.now() - lastNotified) < 3600000) return;
-
-        // Read latest visit data
         try {
             const data = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
-            const visit = data.visits
-                .filter(v => v.ip === ip)
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+            const visit = data.visits.find(v => v.sessionId === sessionId);
+            if (!visit) continue;
 
-            if (!visit) return;
+            const lastNotified = state.notifiedIPs[visit.ip];
+            if (lastNotified && (now - lastNotified) < 3600000) continue;
 
-            // Only notify if classified as human: duration >= 120s AND clicks >= 1
             if (isHumanVisit(visit)) {
-                recentlyNotified.set(ip, Date.now());
-                if (recentlyNotified.size > 100) {
-                    for (const [k, t] of recentlyNotified.entries())
-                        if (Date.now() - t > 3600000) recentlyNotified.delete(k);
-                }
+                state.notifiedIPs[visit.ip] = now;
                 fireVisitorNotification(visit);
             }
         } catch (err) {
             console.error('Notification error:', err.message);
         }
-    }, 2 * 60 * 1000); // wait 2 minutes after last click
+    }
 
-    pendingNotifications.set(ip, timer);
+    if (changed) saveNotifState(state);
 }
+
+setInterval(processPendingNotifications, 20 * 1000);
+processPendingNotifications();
 
 function logVisit(req, res, next) {
     const userAgent = req.headers['user-agent'] || 'Unknown';
@@ -202,7 +223,9 @@ function logVisit(req, res, next) {
         location = parts.length > 0 ? parts.join(', ') : geo.country || 'Unknown';
     }
     
+    const sessionId = crypto.randomUUID();
     const visit = {
+        sessionId: sessionId,
         timestamp: new Date().toISOString(),
         path: req.path,
         ip: realIP,
@@ -224,7 +247,8 @@ function logVisit(req, res, next) {
         }
         
         fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(data, null, 2));
-        scheduleVisitorNotification(visit.ip);
+        res.cookie('mb_sid', sessionId, { sameSite: 'Lax' });
+        scheduleVisitorNotification(sessionId);
     } catch (err) {
         console.error('Analytics logging error:', err);
     }
@@ -357,10 +381,9 @@ app.post('/api/visit', express.json(), (req, res) => {
     try {
         const data = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
 
-        // Find this visitor's most recent visit (created by logVisit middleware on GET /)
-        const visit = data.visits
-            .filter(v => v.ip === realIP)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        // Find this visitor's exact session (created by logVisit middleware on GET /)
+        const sessionId = req.body.sessionId;
+        const visit = data.visits.find(v => v.sessionId === sessionId);
 
         if (visit) {
             // Client-sent referrer (document.referrer) is more reliable for
@@ -406,15 +429,13 @@ app.post('/api/interaction', express.json(), (req, res) => {
     
     try {
         const data = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
-        
-        const recentVisit = data.visits
-            .filter(v => v.ip === realIP)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        const sessionId = req.body.sessionId;
+        const recentVisit = data.visits.find(v => v.sessionId === sessionId);
         
         if (recentVisit) {
             recentVisit.navigations = (recentVisit.navigations || 0) + 1;
             fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(data, null, 2));
-            scheduleVisitorNotification(realIP);
+            scheduleVisitorNotification(sessionId);
         }
         
         res.json({ success: true });
@@ -445,10 +466,8 @@ app.post('/api/ping', express.json(), (req, res) => {
     
     try {
         const data = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
-        
-        const recentVisit = data.visits
-            .filter(v => v.ip === realIP)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        const sessionId = req.body.sessionId;
+        const recentVisit = data.visits.find(v => v.sessionId === sessionId);
         
         if (recentVisit) {
             recentVisit.lastHeartbeat = new Date().toISOString();
