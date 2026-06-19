@@ -294,19 +294,7 @@
             Rochester-area visitors → always human<br><br>
             <span style="color:var(--dim);">Everything else = bot</span>
         </div>
-        <button class="refresh-btn" id="filter-btn" onclick="toggleBox('filter-box', 'filter-btn')">filter ▾</button>
-        <div class="rules-box" id="filter-box">
-            <strong>SHOW</strong><br><br>
-            <label style="display:block;cursor:pointer;">
-                <input type="radio" name="filter-level" value="human" checked onchange="setFilterLevel('human')"> Human
-            </label>
-            <label style="display:block;cursor:pointer;margin-top:10px;">
-                <input type="radio" name="filter-level" value="lurker" onchange="setFilterLevel('lurker')"> Lurker
-            </label>
-            <label style="display:block;cursor:pointer;margin-top:10px;">
-                <input type="radio" name="filter-level" value="all" onchange="setFilterLevel('all')"> Bot
-            </label>
-        </div>
+        <button class="refresh-btn" id="filter-btn" onclick="cycleFilter()" title="Click to cycle: Human → Lurker → Bot">Human</button>
         <button class="refresh-btn" onclick="location.reload()">↺ refresh</button>
     </div>
 </div>
@@ -362,29 +350,26 @@ function getSource(v) {
     }
 }
 
-// Both dropdowns share the same box markup/positioning — only one open at a time
-const DROPDOWNS = [['rules-box', 'rules-btn'], ['filter-box', 'filter-btn']];
-
 function toggleBox(boxId, btnId) {
     const box = document.getElementById(boxId);
-    const opening = box.style.display !== 'block';
-    DROPDOWNS.forEach(([id]) => { document.getElementById(id).style.display = 'none'; });
-    box.style.display = opening ? 'block' : 'none';
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
 }
 
 document.addEventListener('click', function(e) {
-    DROPDOWNS.forEach(([boxId, btnId]) => {
-        const box = document.getElementById(boxId);
-        const btn = document.getElementById(btnId);
-        if (box.style.display === 'block' && !box.contains(e.target) && e.target !== btn) {
-            box.style.display = 'none';
-        }
-    });
+    const box = document.getElementById('rules-box');
+    const btn = document.getElementById('rules-btn');
+    if (box.style.display === 'block' && !box.contains(e.target) && e.target !== btn) {
+        box.style.display = 'none';
+    }
 });
 
-function setFilterLevel(level) {
-    filterLevel = level;
-    document.getElementById('filter-box').style.display = 'none';
+const FILTER_LEVELS = ['human', 'lurker', 'all'];
+const FILTER_LABELS = { human: 'Human', lurker: 'Lurker', all: 'Bot' };
+
+function cycleFilter() {
+    const next = FILTER_LEVELS[(FILTER_LEVELS.indexOf(filterLevel) + 1) % FILTER_LEVELS.length];
+    filterLevel = next;
+    document.getElementById('filter-btn').textContent = FILTER_LABELS[next];
     init();
 }
 
