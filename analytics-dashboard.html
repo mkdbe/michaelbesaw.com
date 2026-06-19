@@ -295,9 +295,9 @@
         <button class="refresh-btn" id="rules-btn" onclick="toggleBox('rules-box', 'rules-btn')" title="Classification rules">ⓘ rules</button>
         <div class="rules-box" id="rules-box">
             <strong>HUMAN</strong><br>
-            Duration ≥ 30s, <span style="color:var(--dim)">or</span> Rochester-metro override<br><br>
+            Duration ≥ 33s, <span style="color:var(--dim)">or</span> Rochester-metro override<br><br>
             <strong>LURKER</strong><br>
-            Some duration, under 30s — likely bot, unconfirmed<br><br>
+            Some duration, under 33s — likely bot, unconfirmed<br><br>
             <strong>GEO OVERRIDE</strong><br>
             Monroe County + bordering counties → always human<br><br>
             <strong>BOT-VELOCITY CHECK</strong><br>
@@ -329,7 +329,7 @@ function classify(v) {
     if (dur > 0 && nav / dur > 0.5) return 'bot';
     const loc = v.location || '';
     if (/,\s*NY\b/i.test(loc) && ROCHESTER_METRO_TOWNS.test(loc)) return 'human';
-    if (dur >= 30) return 'human';
+    if (dur >= 33) return 'human';
     if (dur > 0) return 'lurker';
     return 'bot';
 }

@@ -52,7 +52,7 @@ function isHumanVisit(visit) {
     if (dur > 0 && nav / dur > 0.5) return false;
     const loc = visit.location || '';
     if (/,\s*NY\b/i.test(loc) && ROCHESTER_METRO_TOWNS.test(loc)) return true;
-    return dur >= 30;
+    return dur >= 33;
 }
 
 // ── Email notification setup ──────────────────────────────────────────
