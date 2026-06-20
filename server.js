@@ -88,7 +88,7 @@ function fireVisitorNotification(visit) {
     }
 
     resend.emails.send({
-        from: "onboarding@resend.dev",
+        from: "alerts@hm-av.com",
         to: "mdbe@me.com",
         subject: `👤 New visitor on michaelbesaw.com — ${visit.location}`,
         html: `<!DOCTYPE html>
