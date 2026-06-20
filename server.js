@@ -162,6 +162,68 @@ function processPendingNotifications() {
 setInterval(processPendingNotifications, 20 * 1000);
 processPendingNotifications();
 
+// ── Bot-traffic retention cleanup ───────────────────────────────────────
+// Permanently removes finalized bot-classified visits so the 10,000-visit
+// cap (see ANALYTICS_FILE write logic below) is spent on human/lurker
+// traffic, not noise. Forward-only by design: a disk-persisted cutoff
+// (set once, the first time this code runs) means nothing that existed
+// before this feature shipped is ever touched, no matter how many times
+// the service restarts.
+const BOT_PRUNE_STATE_FILE = path.join(__dirname, 'bot-prune-state.json');
+const BOT_PRUNE_FINALIZE_MS = 60 * 60 * 1000; // don't touch a visit until 1hr after its last heartbeat — it may still be an active session
+
+function loadBotPruneState() {
+    try {
+        return JSON.parse(fs.readFileSync(BOT_PRUNE_STATE_FILE, 'utf8'));
+    } catch (err) {
+        const state = { cutoff: new Date().toISOString() };
+        fs.writeFileSync(BOT_PRUNE_STATE_FILE, JSON.stringify(state, null, 2));
+        return state;
+    }
+}
+
+// Bot per the same rules as classify()/isHumanVisit(): not geo-overridden,
+// and either zero duration or an implausible click velocity. Visits with
+// some duration that aren't velocity-flagged are "lurker" and are kept.
+function isBotVisit(visit) {
+    const dur = visit.duration || 0;
+    const nav = visit.navigations || 0;
+    const loc = visit.location || '';
+    if (/,\s*NY\b/i.test(loc) && ROCHESTER_METRO_TOWNS.test(loc)) return false;
+    if (dur > 0 && nav / dur > 0.5) return true;
+    return dur === 0;
+}
+
+function pruneBotVisits() {
+    try {
+        const cutoffMs = new Date(loadBotPruneState().cutoff).getTime();
+        const data = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
+        const now = Date.now();
+        const before = data.visits.length;
+
+        data.visits = data.visits.filter(visit => {
+            if (new Date(visit.timestamp).getTime() < cutoffMs) return true; // predates this feature — never touch
+            const lastActivity = new Date(visit.lastHeartbeat || visit.timestamp).getTime();
+            if (now - lastActivity < BOT_PRUNE_FINALIZE_MS) return true; // could still be an active session
+            return !isBotVisit(visit);
+        });
+
+        if (data.visits.length > 10000) {
+            data.visits = data.visits.slice(-10000);
+        }
+
+        if (data.visits.length !== before) {
+            fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(data, null, 2));
+            console.log(`Bot prune: removed ${before - data.visits.length} visits (${before} -> ${data.visits.length})`);
+        }
+    } catch (err) {
+        console.error('Bot-prune error:', err.message);
+    }
+}
+
+setInterval(pruneBotVisits, 60 * 60 * 1000);
+pruneBotVisits();
+
 function logVisit(req, res, next) {
     const userAgent = req.headers['user-agent'] || 'Unknown';
     

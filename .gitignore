@@ -1,6 +1,7 @@
 node_modules/
 analytics.json
 notifications-state.json
+bot-prune-state.json
 photos/
 *.log
 photos-mobile/
