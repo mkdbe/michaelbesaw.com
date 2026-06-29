@@ -41,8 +41,8 @@ except ImportError:
 
 # ── Server Config ─────────────────────────────────────────────────────────────
 RSYNC_USER_HOST  = "mdbe@linode"
-REMOTE_WEB_DIR   = "/var/www/html/michaelbesaw.com/photos/"
-REMOTE_MOBILE_DIR= "/var/www/html/michaelbesaw.com/photos-mobile/"
+REMOTE_WEB_DIR   = "/var/www/michaelbesaw.com/photos/"
+REMOTE_MOBILE_DIR= "/var/www/michaelbesaw.com/photos-mobile/"
 RSYNC_CMD        = "rsync"
 RSYNC_FLAGS      = ["-avhi", "--perms"]
 SSH_CMD          = "ssh"
@@ -556,6 +556,15 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         self._progress_pos += 4
         self.after(30, self._animate_progress)
 
+    def _fetch_server_filenames(self):
+        """Return set of filenames already in /photos/ on the server."""
+        result = subprocess.run(
+            [SSH_CMD, RSYNC_USER_HOST, f"ls '{REMOTE_WEB_DIR}'"],
+            capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception(f"Could not list server photos: {result.stderr.strip()}")
+        return {name.strip() for name in result.stdout.splitlines() if name.strip()}
+
     def _process_and_upload(self):
         tmp = Path(tempfile.mkdtemp())
         web_dir = tmp / "photos"
@@ -564,9 +573,29 @@ class PhotoUploaderApp(TkinterDnD.Tk):
         mobile_dir.mkdir()
 
         try:
-            self._log(f"\nProcessing {len(self.queued_files)} photo(s)…")
-            for i, src in enumerate(self.queued_files):
-                self._log(f"  [{i+1}/{len(self.queued_files)}] {src.name}")
+            self._log("\nChecking for duplicates on server…")
+            existing = self._fetch_server_filenames()
+
+            to_upload = []
+            for src in self.queued_files:
+                out_name = src.stem + ".jpg"
+                if out_name in existing:
+                    self._log(f"  ✗ skipping {src.name} — already on server")
+                else:
+                    to_upload.append(src)
+
+            if not to_upload:
+                self._log("\n✗ All queued photos already exist on server — nothing uploaded.")
+                self.after(0, self._upload_complete)
+                return
+
+            if len(to_upload) < len(self.queued_files):
+                skipped = len(self.queued_files) - len(to_upload)
+                self._log(f"  {skipped} duplicate(s) skipped, {len(to_upload)} new photo(s) to upload\n")
+
+            self._log(f"Processing {len(to_upload)} photo(s)…")
+            for i, src in enumerate(to_upload):
+                self._log(f"  [{i+1}/{len(to_upload)}] {src.name}")
                 try:
                     _, _, info = process_photo(src, web_dir, mobile_dir)
                     self._log(f"    web:    {info['web_dim'][0]}×{info['web_dim'][1]}  {info['web_kb']:.0f}KB")
@@ -578,7 +607,7 @@ class PhotoUploaderApp(TkinterDnD.Tk):
             self._rsync(str(web_dir) + "/", f"{RSYNC_USER_HOST}:{REMOTE_WEB_DIR}")
             self._log("Uploading mobile photos…")
             self._rsync(str(mobile_dir) + "/", f"{RSYNC_USER_HOST}:{REMOTE_MOBILE_DIR}")
-            self._log(f"\n✓ Done — {len(self.queued_files)} photo(s) uploaded")
+            self._log(f"\n✓ Done — {len(to_upload)} photo(s) uploaded")
             self.after(0, self._upload_complete)
         except Exception as e:
             self._log(f"\n✗ Upload failed: {e}")
@@ -675,10 +704,15 @@ class PhotoUploaderApp(TkinterDnD.Tk):
     def _execute_delete(self):
         try:
             self._log(f"\nDeleting {len(self.delete_files)} photo(s) from server…")
+            deleted = 0
             for name in self.delete_files:
                 web_path = REMOTE_WEB_DIR + name
                 mobile_path = REMOTE_MOBILE_DIR + name
-                rm_cmd = f"rm -f {web_path} {mobile_path}"
+                # Check existence and delete each path separately so we get honest feedback
+                rm_cmd = (
+                    f"([ -f '{web_path}' ] && rm '{web_path}' && echo 'deleted:web' || echo 'missing:web'); "
+                    f"([ -f '{mobile_path}' ] && rm '{mobile_path}' && echo 'deleted:mobile' || echo 'missing:mobile')"
+                )
                 self._log(f"  rm {name}")
                 result = subprocess.run(
                     [SSH_CMD, RSYNC_USER_HOST, rm_cmd],
@@ -686,8 +720,18 @@ class PhotoUploaderApp(TkinterDnD.Tk):
                 if result.returncode != 0:
                     self._log(f"    ERROR: {result.stderr.strip()}")
                 else:
-                    self._log(f"    ✓ removed")
-            self._log(f"\n✓ Done — {len(self.delete_files)} photo(s) deleted")
+                    found = False
+                    for line in result.stdout.strip().splitlines():
+                        if line.startswith("deleted:"):
+                            self._log(f"    ✓ removed from {line.split(':')[1]}")
+                            found = True
+                        elif line.startswith("missing:"):
+                            self._log(f"    ✗ not found in {line.split(':')[1]}")
+                    if found:
+                        deleted += 1
+                    else:
+                        self._log(f"    ✗ file does not exist on server — nothing removed")
+            self._log(f"\n✓ Done — {deleted}/{len(self.delete_files)} photo(s) removed")
             self.after(0, self._delete_complete)
         except Exception as e:
             self._log(f"\n✗ Delete failed: {e}")
